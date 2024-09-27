@@ -136,7 +136,7 @@ type DrawIter<'a> = (
     Option<&'a Parent>,
 );
 
-fn draw_entity<F: QueryFilter>(
+pub fn draw_entity<F: QueryFilter>(
     commands: &mut Commands,
     ui: &mut egui::Ui,
     query: &Query<DrawIter, F>,
