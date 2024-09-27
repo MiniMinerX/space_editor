@@ -59,7 +59,9 @@ space_editor_tabs = { version = "0.6.0", path = "crates/editor_tabs" }
 anyhow = "1.0"
 bevy_asset_loader = "0.21"
 bevy_debug_grid = "0.6"
-bevy_egui = { version = "0.29.0", feature = ["render"] }
+# bevy_egui = { version = "0.29.0", feature = ["render"] }
+bevy_egui = { branch = "new_egui", git = "https://github.com/MiniMinerX/bevy_egui.git", feature = ["render"] }
+
 bevy-inspector-egui = { version = "0.26.0", features = [
     "bevy_pbr",
     "highlight_changes",
