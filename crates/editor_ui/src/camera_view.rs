@@ -128,6 +128,7 @@ impl EditorTab for CameraViewTab {
             With<Camera>,
             With<PlaymodeCamera>,
             Without<EditorCameraMarker>,
+            Without<VrCam>,
         )>();
 
         if camera_query.iter(world).count() == 1 {
@@ -271,7 +272,7 @@ impl EditorTab for CameraViewTab {
 
 fn clean_camera_view_tab(
     mut ui_state: ResMut<CameraViewTab>,
-    mut cameras: Query<(&mut Camera, &mut GlobalTransform), Without<EditorCameraMarker>>,
+    mut cameras: Query<(&mut Camera, &mut GlobalTransform), (Without<EditorCameraMarker>, Without<VrCam>)>,
 ) {
     let Some(real_cam_entity) = ui_state.real_camera else {
         return;
