@@ -295,7 +295,7 @@ fn clean_camera_view_tab(
 struct LastCamTabRect(Option<egui::Rect>);
 
 #[derive(Component)]
-struct VrCam;
+pub struct VrCam;
 
 fn set_camera_viewport(
     mut local: Local<LastCamTabRect>,
