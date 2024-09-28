@@ -62,7 +62,7 @@ bevy_debug_grid = "0.6"
 # bevy_egui = { version = "0.29.0", feature = ["render"] }
 bevy_egui = { branch = "new_egui", git = "https://github.com/MiniMinerX/bevy_egui.git", feature = ["render"] }
 
-bevy-inspector-egui = { version = "0.26.0", features = [
+bevy-inspector-egui = { branch = "egui29", git = "https://github.com/MiniMinerX/bevy-inspector-egui.git", features = [
     "bevy_pbr",
     "highlight_changes",
 ] }
@@ -71,13 +71,13 @@ bevy_mod_picking = { version = "0.20.1", default-features = false, features = ["
 bevy_panorbit_camera = { version = "0.19", default-features = false }
 bevy-scene-hook = {git = "https://github.com/stargazing-dino/bevy-scene-hook.git", branch= "update-14.0"}
 convert_case = "0.6"
-egui_dock = "0.13"
-egui_extras = { version = "0.28.1", features = ["all_loaders"] }
-egui_file = "0.18"
-transform-gizmo-egui = "0.3.0"
-transform-gizmo-bevy = "0.3.0"
-egui-toast = "0.14.0"
-image = {version = "0.25.1", feature = ["png"] }
+egui_dock = { git = "https://github.com/Adanos020/egui_dock.git", branch = "egui-0.29"}
+egui_extras = { version = "0.29", features = ["all_loaders"] }
+egui_file = "0.19"
+transform-gizmo-egui = { branch = "egui29", git = "https://github.com/MiniMinerX/transform-gizmo.git"}
+transform-gizmo-bevy = { branch = "egui29", git = "https://github.com/MiniMinerX/transform-gizmo.git"}
+egui-toast = { git = "https://github.com/MiniMinerX/egui-toast.git", branch = "egui29"}
+image = {version = "0.25.2", feature = ["png"] }
 pretty-type-name = "1"
 rand = "*"
 ron = "0.8"
