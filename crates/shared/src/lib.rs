@@ -21,7 +21,7 @@ pub mod toast;
 
 
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct VrCam;
 
 
