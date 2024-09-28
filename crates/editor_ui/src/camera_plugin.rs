@@ -1,6 +1,6 @@
 use crate::*;
 use bevy::prelude::*;
-use camera_view::VrCam;
+use space_shared::VrCam;
 
 pub struct EditorDefaultCameraPlugin;
 

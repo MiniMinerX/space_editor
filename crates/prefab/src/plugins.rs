@@ -12,7 +12,7 @@ use bevy::{
     },
 };
 use bevy_scene_hook::HookPlugin;
-use space_shared::toast::ToastMessage;
+use space_shared::{toast::ToastMessage, VrCam};
 use space_shared::{LightAreaToggle, PrefabMarker};
 
 use crate::{
@@ -251,6 +251,7 @@ fn camera_render_graph_creation(
             With<Camera3d>,
             With<PrefabMarker>,
             Without<CameraRenderGraph>,
+            Without<VrCam>,
         ),
     >,
 ) {

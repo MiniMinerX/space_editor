@@ -16,6 +16,17 @@ pub mod asset_fs;
 pub(crate) mod gizmos;
 pub mod toast;
 
+
+
+
+
+
+#[derive(Component)]
+pub struct VrCam;
+
+
+
+
 /// Component Marker to display entity in Editor
 #[derive(Component, Default, Clone, Reflect)]
 #[reflect(Component)]
