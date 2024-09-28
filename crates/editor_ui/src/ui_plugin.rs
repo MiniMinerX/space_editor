@@ -90,7 +90,7 @@ pub struct EditorUiCore {
 impl Default for EditorUiCore {
     fn default() -> Self {
         Self {
-            disable_no_editor_cams: false,
+            disable_no_editor_cams: true,
         }
     }
 }
