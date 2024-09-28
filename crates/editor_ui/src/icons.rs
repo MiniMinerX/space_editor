@@ -149,13 +149,19 @@ pub fn add_bundle_icon<'a>(size: f32, text: &str) -> egui::Button<'a> {
 }
 
 pub fn add_entity_icon<'a>(size: f32, text: &str) -> egui::Button<'a> {
+    
+    //println!("im here");
     let image = egui::Image::from_bytes("add_entity.svg", crate::icons::ADD_ENTITY.as_bytes())
         .fit_to_exact_size(bevy_egui::egui::vec2(size, size));
+    //println!("test 5");
     if text.is_empty() {
+        //println!("TEST: is empty");
         egui::Button::image(image)
     } else {
+        //println!("TEST: print with text: {}", text);
         egui::Button::image_and_text(image, text)
     }
+    
 }
 
 pub fn add_component_icon<'a>(size: f32, text: impl Into<WidgetText>) -> egui::Button<'a> {

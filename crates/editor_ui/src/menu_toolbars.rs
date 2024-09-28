@@ -188,16 +188,23 @@ pub fn bottom_menu(
                         });
                     }
                 }
-                if ui
-                    .add(add_entity_icon(sizing.icon.to_size(), "").stroke(stroke_default_color()))
+
+                //println!("im where: {}", sizing.icon.to_size());
+                if {ui
+                    .add(add_entity_icon(sizing.icon.to_size() , "hi")
+
+                    .stroke(stroke_default_color()))
                     .on_hover_text("Add new entity")
                     .clicked()
-                {
+                } {
                     let id = commands.spawn_empty().insert(PrefabMarker).id();
                     changes.send(NewChange {
                         change: Arc::new(AddedEntity { entity: id }),
                     });
                 }
+                //println!("im not there");
+
+
                 let spawnable_button =
                     add_bundle_icon(sizing.icon.to_size(), "").stroke(stroke_default_color());
 
@@ -243,6 +250,8 @@ pub fn bottom_menu(
                                         categories_vec.sort_by(|a, b| a.0.cmp(b.0));
 
                                         for (name, dyn_bundle) in categories_vec {
+                                            //println!("Adding button for bundle: {}", name);
+
                                             let button = egui::Button::new(name).ui(ui);
                                             if button.clicked() {
                                                 let entity = dyn_bundle.spawn(&mut commands);
