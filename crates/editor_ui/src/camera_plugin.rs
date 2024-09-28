@@ -1,5 +1,6 @@
 use crate::*;
 use bevy::prelude::*;
+use camera_view::VrCam;
 
 pub struct EditorDefaultCameraPlugin;
 
@@ -62,8 +63,8 @@ pub fn update_pan_orbit(
     }
 }
 
-type PlayModeCameraFilter = (Without<EditorCameraMarker>, With<PlaymodeCamera>);
-type EditorModeCameraFilter = (With<EditorCameraMarker>, Without<PlaymodeCamera>);
+type PlayModeCameraFilter = (Without<EditorCameraMarker>, With<PlaymodeCamera>, Without<VrCam>);
+type EditorModeCameraFilter = (With<EditorCameraMarker>, Without<PlaymodeCamera>, Without<VrCam>);
 
 /// System to change camera from editor camera to game play camera (if exist)
 pub fn change_camera_in_play(
