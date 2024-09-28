@@ -294,11 +294,14 @@ fn clean_camera_view_tab(
 #[derive(Default)]
 struct LastCamTabRect(Option<egui::Rect>);
 
+#[derive(Component)]
+struct VrCam;
+
 fn set_camera_viewport(
     mut local: Local<LastCamTabRect>,
     mut ui_state: ResMut<CameraViewTab>,
     primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut cameras: Query<(&mut Camera, &mut GlobalTransform), Without<EditorCameraMarker>>,
+    mut cameras: Query<(&mut Camera, &mut GlobalTransform), Without<(EditorCameraMarker, VrCam)>>,
     mut ctxs: EguiContexts,
     images: Res<Assets<Image>>,
 ) {
