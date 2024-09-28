@@ -301,7 +301,7 @@ fn set_camera_viewport(
     mut local: Local<LastCamTabRect>,
     mut ui_state: ResMut<CameraViewTab>,
     primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut cameras: Query<(&mut Camera, &mut GlobalTransform), Without<(EditorCameraMarker, VrCam)>>,
+    mut cameras: Query<(&mut Camera, &mut GlobalTransform), (Without<VrCam>, Without<EditorCameraMarker>)>,
     mut ctxs: EguiContexts,
     images: Res<Assets<Image>>,
 ) {
