@@ -15,7 +15,7 @@ default-run = "space_editor"
 
 [workspace]
 members = [
-    "game",
+    # "game",
     "crates/*",
     "external/editor_as_plugin", 
     "workspace-hakari"
