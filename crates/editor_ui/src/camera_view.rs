@@ -123,7 +123,7 @@ impl EditorTab for CameraViewTab {
         let mut camera_query = world.query_filtered::<Entity, (
             With<Camera>,
             With<PlaymodeCamera>,
-            Without<EditorCameraMarker>,
+            //Without<EditorCameraMarker>,
         )>();
 
         if camera_query.iter(world).count() == 1 {
