@@ -175,11 +175,14 @@ pub fn draw_camera_gizmo(
     for (transform, _projection) in cameras.iter() {
         let pink = Color::srgb(1.0, 0.41, 0.71);
 
+        let scale = 0.4;
+        let scale2 = 0.4 / 1.5;
+        
         let transform = transform.compute_transform();
-        let cuboid_transform = transform.with_scale(Vec3::new(1.0, 1.0, 2.0));
+        let cuboid_transform = transform.with_scale(Vec3::new(1.0 * scale2, 1.0 * scale2, 2.0 * scale2));
         gizmos.cuboid(cuboid_transform, pink);
 
-        let scale = 0.25;
+        
 
         gizmos.line(
             transform.translation,
