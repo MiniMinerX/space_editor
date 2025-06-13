@@ -140,7 +140,7 @@ pub fn change_camera_in_editor(
         ecam.is_active = true;
     }
 
-    for mut play_cam in play_cameras.iter_mut() {
+    for mut play_cam in play_only_cameras.iter_mut() {
         play_cam.is_active = false;
     }
 }
