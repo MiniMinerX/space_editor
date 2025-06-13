@@ -181,7 +181,7 @@ impl Plugin for EditorUiCore {
         app.add_systems(
             Update,
             (
-                draw_camera_gizmo,
+                //draw_camera_gizmo,
                 //draw_light_gizmo,
                 //selection::delete_selected,
             )
