@@ -100,8 +100,11 @@ fn editor_event_listener(
             EditorEvent::StartGame => {
                 start_game_state.set(EditorState::GamePrepare);
             }
-            EditorEvent::LoadGltfAsPrefab(path) => {
-                gltf_events.write(gltf_unpack::EditorUnpackGltf { path: path.clone() });
+            EditorEvent::LoadGltfAsPrefab{path, parent} => {
+                gltf_events.write(gltf_unpack::EditorUnpackGltf { 
+                    path: path.clone(),
+                    parent: *parent,
+                });
             }
         }
     }
