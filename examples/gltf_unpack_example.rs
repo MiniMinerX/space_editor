@@ -7,9 +7,7 @@ fn main() {
         .add_systems(Startup, simple_editor_setup)
         .add_systems(Startup, setup)
         .register_type::<PrefabMarker>()
-        //.register_type::<ChildrenPrefab>()
-        //.editor_registry::<ChildrenPrefab>()
-        //.editor_registry::<Children>()
+
 
         .run();
 }

@@ -52,7 +52,6 @@ impl Plugin for LoadPlugin {
                 conflict_resolve,
                 load_prefab,
                 ApplyDeferred,
-                // Use the new debug system
                 auto_children,
             )
                 .chain()
@@ -103,7 +102,7 @@ fn load_prefab(
             }
             commands.entity(e).remove::<Children>();
         }
-
+  
         let scene: Handle<DynamicScene> = assets.load(&l.path);
 
         let id = commands
@@ -115,6 +114,8 @@ fn load_prefab(
             .id();
 
         commands.entity(e).add_children(&[id]);
+        
+        
     }
 }
 
@@ -127,7 +128,7 @@ fn conflict_resolve(
     }
 }
 
- 
+  
 fn auto_children(
     mut commands: Commands,
     query: Query<(Entity, &ChildrenPrefab)>,
@@ -135,7 +136,8 @@ fn auto_children(
 ) {
     for (e, children) in query.iter() {
         let mut cmds = commands.entity(e);
-        for child in children.0.iter() {
+        for child in children.entities.iter() {
+            println!("Adding child: {:?}", child);
             if existing_entity.contains(*child) {
                 cmds.add_child(*child);
             } else {
@@ -145,6 +147,7 @@ fn auto_children(
         cmds.remove::<ChildrenPrefab>();
     }
 }
+
 
 
 #[cfg(test)]

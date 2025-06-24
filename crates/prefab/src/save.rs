@@ -6,28 +6,39 @@ use std::{any::TypeId, fs, io::Write};
 
 use crate::prelude::{EditorRegistry, EditorRegistryExt, SceneAutoChild};
 
-#[derive(Reflect, Default, Component, Clone)]
+#[derive(Reflect, Default, Component, Clone, MapEntities)]
 #[reflect(Component, MapEntities)]
 /// Component that holds children entity/prefab information
 /// that should be serialized
-pub struct ChildrenPrefab(pub Vec<Entity>);
+pub struct ChildrenPrefab{
+    #[entities]
+    pub entities: Vec<Entity>,
+}
 
 impl ChildrenPrefab {
     pub fn from_children(children: &Children) -> Self {
-        Self(children.to_vec())
+        ChildrenPrefab { 
+            entities: children.to_vec(),
+        }
     }
 }
 
+/* 
 impl MapEntities for ChildrenPrefab {
     #[cfg(not(tarpaulin_include))]
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.0 = self
-            .0
-            .iter()
-            .map(|e| entity_mapper.get_mapped(*e))
-            .collect();
+        // =================================================================================
+        // DIAGNOSTIC LOGS: Check your console for these messages when loading a prefab.
+        // =================================================================================
+        warn!("ChildrenPrefab::map_entities CALLED. This is a good sign!");
+        for entity in self.0.iter_mut() {
+            let old_id = *entity;
+            *entity = entity_mapper.get_mapped(old_id);
+            info!("    Mapping child {:?} -> {:?}", old_id, *entity);
+        }
     }
 }
+    */
 
 struct SaveResourcesPrefabPlugin;
 
@@ -319,11 +330,11 @@ mod tests {
             let child_id = commands.spawn_empty().id();
             commands
                 .spawn(PrefabMarker)
-                .insert(ChildrenPrefab(vec![child_id]));
+                .insert(ChildrenPrefab{entities: vec![child_id]});
             let child_id = commands.spawn_empty().id();
             commands
                 .spawn(PrefabMarker)
-                .insert(ChildrenPrefab(vec![child_id]));
+                .insert(ChildrenPrefab{entities: vec![child_id]});
             commands.spawn(PrefabMarker);
         })
         .add_systems(Update, delete_prepared_children);
@@ -345,7 +356,7 @@ mod tests {
         let children = query.single(&world).unwrap();
         let prefab = ChildrenPrefab::from_children(children);
 
-        assert_eq!(prefab.0.len(), 1);
+        assert_eq!(prefab.entities.len(), 1);
     }
 
     #[test]
