@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{platform::collections::HashSet, prelude::*};
 use bevy_scene_hook::SceneHook;
 use space_shared::PrefabMarker;
 
@@ -48,15 +48,16 @@ impl Plugin for LoadPlugin {
 
         app.add_systems(
             Update,
-            load_prefab.after(bevy_scene_hook::Systems::SceneHookRunner),
+            (
+                conflict_resolve,
+                load_prefab,
+                ApplyDeferred,
+                // Use the new debug system
+                auto_children,
+            )
+                .chain()
+                .after(bevy_scene_hook::Systems::SceneHookRunner),
         );
-        app.add_systems(
-            Update,
-            conflict_resolve
-                .after(bevy_scene_hook::Systems::SceneHookRunner)
-                .before(load_prefab),
-        );
-        app.add_systems(Update, auto_children);
     }
 }
 
@@ -108,7 +109,7 @@ fn load_prefab(
         let id = commands
             .spawn(DynamicSceneRoot(scene))
             .insert(SceneHook::new(move |_e, cmd| {
-                cmd.insert(PrefabAutoChild);
+                cmd.insert((PrefabAutoChild));
             }))
             .insert(PrefabAutoChild)
             .id();
@@ -126,6 +127,7 @@ fn conflict_resolve(
     }
 }
 
+ 
 fn auto_children(
     mut commands: Commands,
     query: Query<(Entity, &ChildrenPrefab)>,
@@ -136,11 +138,14 @@ fn auto_children(
         for child in children.0.iter() {
             if existing_entity.contains(*child) {
                 cmds.add_child(*child);
+            } else {
+                println!("nonexistent entity");
             }
         }
         cmds.remove::<ChildrenPrefab>();
     }
 }
+
 
 #[cfg(test)]
 mod test {

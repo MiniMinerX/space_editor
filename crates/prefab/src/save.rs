@@ -139,6 +139,13 @@ pub fn serialize_scene(world: &mut World) {
         .with_resource_filter(SceneFilter::Allowlist(HashSet::from_iter(
             allow_types.iter().cloned(),
         )))
+        .with_component_filter(SceneFilter::Allowlist(HashSet::from_iter(
+            allow_types.iter().cloned(),
+        )))
+        // Deny test for standard material
+        //.deny_component::<MeshMaterial3d<StandardMaterial>>()
+        //.deny_component::<Mesh3d>
+
         .extract_entities(entities.iter().copied());
     let scene = builder.build();
 
