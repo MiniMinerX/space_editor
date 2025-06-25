@@ -130,9 +130,9 @@ impl Plugin for BasePrefabPlugin {
         app.register_type::<ParallaxMappingMethod>();
 
         //camera
-        app.editor_registry::<Camera>();
-        app.editor_registry::<Camera3d>();
-        app.editor_registry::<Camera2d>();
+        //app.editor_registry::<Camera>();
+        //app.editor_registry::<Camera3d>();
+        //app.editor_registry::<Camera2d>();
         app.editor_registry::<Projection>();
         //app.editor_registry::<OrthographicProjection>();
         app.editor_registry::<PlaymodeCamera>();
