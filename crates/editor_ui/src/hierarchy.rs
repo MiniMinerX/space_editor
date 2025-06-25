@@ -162,7 +162,7 @@ fn draw_entity<F: QueryFilter>(
         CollapsingState::load_with_default_open(
             ui.ctx(),
             ui.make_persistent_id(entity_name.clone()),
-            true,
+            false,
         )
         .show_header(ui, |ui| {
             let mut entity_name = egui::RichText::new(entity_name.clone());
