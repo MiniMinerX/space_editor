@@ -100,8 +100,8 @@ bevy_mod_outline = {git = "https://github.com/komadori/bevy_mod_outline.git", br
 
 # below has not been updated to bevy 0.16
 
-transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-2"}
-transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-2"}
+transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
+transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
 
 
 #transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo.git"}
