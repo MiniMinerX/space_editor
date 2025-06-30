@@ -118,6 +118,7 @@ bevy.workspace = true
 space_editor_ui.workspace = true
 space_prefab.workspace = true
 game_app.workspace = true
+transform-gizmo-bevy.workspace = true
 
 # Tabs
 space_editor_game_view.workspace = true

@@ -1,5 +1,6 @@
 use crate::*;
 use bevy::{color::palettes::tailwind::{PINK_100, RED_500}, picking::pointer::PointerInteraction, prelude::*};
+use transform_gizmo_bevy::GizmoTarget;
 
 
 
@@ -119,7 +120,11 @@ pub fn select_listener(
     parents: Query<&ChildOf>,
     pan_orbit_state: ResMut<EditorCameraEnabled>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    gizmo_query: Query<&GizmoTarget>,
 ) {
+    if gizmo_query.iter().any(|gizmo| gizmo.is_active()) {
+        return;
+    }
 
     if !pan_orbit_state.0 {
         trigger.propagate(false);
@@ -140,6 +145,8 @@ pub fn select_listener(
         commands.trigger_targets(SelectEvent, parent.parent()); 
     }
 }
+
+
 
 
 /// This event used for selecting entities

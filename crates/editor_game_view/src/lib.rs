@@ -214,10 +214,10 @@ pub fn set_camera_viewport(
     local.0 = Some(viewport_rect);
 
     let scale_factor = window.scale_factor();
-    debug!(
-        "Window scale factor: {} egui scale factor: {}",
-        scale_factor, context_settings.scale_factor
-    );
+    //debug!(
+    //    "Window scale factor: {} egui scale factor: {}",
+    //    scale_factor, context_settings.scale_factor
+    //);
 
     let mut viewport_pos = viewport_rect.left_top().to_vec2() * scale_factor;
     let mut viewport_size = viewport_rect.size() * scale_factor;
