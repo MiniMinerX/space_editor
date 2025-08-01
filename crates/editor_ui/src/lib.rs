@@ -139,6 +139,9 @@ pub mod prelude {
     pub use crate::EditorPlugin;
 
     pub use crate::editor_tab_name::*;
+
+    // Game editor tab egui editing
+    pub use space_edtior_game_view::GameViewTab;
 }
 
 /// External dependencies for editor crate
