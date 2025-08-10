@@ -51,8 +51,8 @@ impl Plugin for EditorCore {
         app.add_systems(Update, editor_event_listener);
 
         //app.auto_reflected_undo::<ChildOf>();
-        app.auto_reflected_undo::<Children>();
-        app.auto_undo::<PrefabMarker>();
+        //app.auto_reflected_undo::<Children>();
+        //app.auto_undo::<PrefabMarker>();
     }
 }
 
