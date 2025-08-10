@@ -15,7 +15,7 @@ pub fn plugin(app: &mut App) {
 
     app.add_systems(
         Update,
-        (delete_selected, reemit_pointer_click, auto_add_markers)
+        (delete_selected, reemit_pointer_click) //, auto_add_markers)
     );
 
     app.add_systems(
