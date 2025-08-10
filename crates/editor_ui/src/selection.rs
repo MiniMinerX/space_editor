@@ -26,7 +26,7 @@ pub fn plugin(app: &mut App) {
     app.add_event::<AddMarkersEvent>();
 
     app.add_observer(select_listener);
-    app.add_observer(recursive_add_markers);
+    //app.add_observer(recursive_add_markers);
 
     app.insert_resource(MeshPickingSettings {
         require_markers: false,
