@@ -26,6 +26,7 @@ impl Plugin for UndoPlugin {
         app.add_event::<NewChange>();
         app.add_event::<UndoRedo>();
 
+        /*
         app.configure_sets(
             PostUpdate,
             (UndoSet::PerType, UndoSet::UpdateAll, UndoSet::Remapping)
@@ -44,6 +45,7 @@ impl Plugin for UndoPlugin {
                 .chain()
                 .in_set(UndoSet::UpdateAll),
         );
+        */
     }
 }
 
