@@ -30,7 +30,7 @@ pub fn plugin(app: &mut App) {
 
     app.insert_resource(MeshPickingSettings {
         require_markers: true,
-        ray_cast_visibility: RayCastVisibility::Any
+        ray_cast_visibility: RayCastVisibility::VisibleInView
     });
 }
 
