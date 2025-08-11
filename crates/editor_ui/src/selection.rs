@@ -10,7 +10,7 @@ pub fn plugin(app: &mut App) {
         app.add_plugins(MeshPickingPlugin);
     }
 
-    app.add_observer(on_pointer_click);
+    //app.add_observer(on_pointer_click);
 
 
     app.add_systems(
