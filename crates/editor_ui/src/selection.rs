@@ -29,7 +29,7 @@ pub fn plugin(app: &mut App) {
     //app.add_observer(recursive_add_markers);
 
     app.insert_resource(MeshPickingSettings {
-        require_markers: false,
+        require_markers: true,
         ray_cast_visibility: RayCastVisibility::Any
     });
 }
