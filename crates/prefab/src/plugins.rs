@@ -388,7 +388,7 @@ fn on_asset_mesh_removed(
     mut commands: Commands,
 ) {
     let entity = trigger.target();
-    if let Some(mut cmd) = commands.get_entity(entity) {
+    if let Ok(mut cmd) = commands.get_entity(entity) {
         cmd.remove::<Mesh3d>();
         info!("Removed mesh handle for entity {:?}", entity);
     }
@@ -430,7 +430,7 @@ fn on_asset_material_removed(
     mut commands: Commands,
 ) {
     let entity = trigger.target();
-    if let Some(mut cmd) = commands.get_entity(entity) {
+    if let Ok(mut cmd) = commands.get_entity(entity) {
         cmd.remove::<MeshMaterial3d<StandardMaterial>>();
         info!("Removed material handle for entity {:?}", entity);
     }
