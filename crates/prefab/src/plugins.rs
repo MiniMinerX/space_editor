@@ -500,7 +500,7 @@ fn batched_sync_asset_mesh(
     // Load each unique mesh path once and apply to all entities that need it
     for (path, entities) in path_to_entities {
         info!("Loading mesh '{}' for {} entities", path, entities.len());
-        let mesh_handle = assets.load(&path);
+        let mesh_handle = assets.load::<Mesh>(&path);
         
         for entity in entities {
             commands.entity(entity).insert(Mesh3d(mesh_handle.clone()));
@@ -565,7 +565,7 @@ fn batched_sync_asset_material(
     // Load each unique material path once and apply to all entities
     for (path, entities) in path_to_entities {
         info!("Loading material '{}' for {} entities", path, entities.len());
-        let material_handle = assets.load(&path);
+        let material_handle = assets.load<StandardMaterial>(&path);
         
         for entity in entities {
             commands.entity(entity).insert(MeshMaterial3d(material_handle.clone()));
