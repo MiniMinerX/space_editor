@@ -6,6 +6,7 @@ use bevy::{
 use bevy_scene_hook::HookPlugin;
 use space_shared::toast::ToastMessage;
 use space_shared::{LightAreaToggle, PrefabMarker};
+use std::collections::HashMap;
 
 use crate::{
     component, editor_registry::EditorRegistryExt, load, prelude::EditorRegistryPlugin, save,
@@ -39,7 +40,7 @@ impl Plugin for BasePrefabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.init_state::<EditorState>();
-        app.insert_resource(AssetCache::Default());
+        app.insert_resource(AssetCache::default());
 
         if !app.is_plugin_added::<HookPlugin>() {
             app.add_plugins(HookPlugin);
