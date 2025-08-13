@@ -113,16 +113,22 @@ impl Plugin for BasePrefabPlugin {
         app.register_type::<Capsule2dPrefab>();
 
         app.editor_registry::<AssetMesh>();
-        app.add_systems(
-            Update,
-            sync_asset_mesh.in_set(PrefabSet::DetectPrefabChange),
-        );
+        //app.add_systems(
+        //    Update,
+        //    sync_asset_mesh.in_set(PrefabSet::DetectPrefabChange),
+        //);
+        app.add_observer(on_asset_mesh_added);
+        //app.add_observer(on_asset_mesh_changed);
+        app.add_observer(on_asset_mesh_removed);
 
         app.editor_registry::<AssetMaterial>();
-        app.add_systems(
-            Update,
-            sync_asset_material.in_set(PrefabSet::DetectPrefabChange),
-        );
+        //app.add_systems(
+        //    Update,
+        //    sync_asset_material.in_set(PrefabSet::DetectPrefabChange),
+        //);
+        app.add_observer(on_asset_material_added);
+        //app.add_observer(on_asset_material_changed);
+        app.add_observer(on_asset_material_removed);
 
         //material registration
         app.register_type::<Color>();
@@ -347,6 +353,86 @@ fn sync_asset_material(
         if let Ok(mut cmd) = commands.get_entity(e) {
             cmd.remove::<MeshMaterial3d<StandardMaterial>>();
         }
+    }
+}
+
+// AssetMesh observers
+fn on_asset_mesh_added(
+    trigger: Trigger<OnAdd, AssetMesh>,
+    mut commands: Commands,
+    query: Query<&AssetMesh>,
+    assets: Res<AssetServer>,
+) {
+    let entity = trigger.target();
+    if let Ok(asset_mesh) = query.get(entity) {
+        info!("Loading mesh for entity {:?}: {}", entity, asset_mesh.path);
+        commands.entity(entity).insert(assets.load::<Mesh>(&asset_mesh.path));
+    }
+}
+
+/*
+fn on_asset_mesh_changed(
+    trigger: Trigger<OnReplace, AssetMesh>,
+    mut commands: Commands,
+    query: Query<&AssetMesh>,
+    assets: Res<AssetServer>,
+) {
+    let entity = trigger.target();
+    if let Ok(asset_mesh) = query.get(entity) {
+        info!("Updating mesh for entity {:?}: {}", entity, asset_mesh.path);
+        commands.entity(entity).insert(assets.load::<Mesh>(&asset_mesh.path));
+    }
+}
+*/
+
+fn on_asset_mesh_removed(
+    trigger: Trigger<OnRemove, AssetMesh>,
+    mut commands: Commands,
+) {
+    let entity = trigger.target();
+    if let Some(mut cmd) = commands.get_entity(entity) {
+        cmd.remove::<Handle<Mesh>>();
+        info!("Removed mesh handle for entity {:?}", entity);
+    }
+}
+
+// AssetMaterial observers
+fn on_asset_material_added(
+    trigger: Trigger<OnAdd, AssetMaterial>,
+    mut commands: Commands,
+    query: Query<&AssetMaterial>,
+    assets: Res<AssetServer>,
+) {
+    let entity = trigger.target();
+    if let Ok(asset_material) = query.get(entity) {
+        info!("Loading material for entity {:?}: {}", entity, asset_material.path);
+        commands.entity(entity).insert(assets.load::<StandardMaterial>(&asset_material.path));
+    }
+}
+
+/*
+fn on_asset_material_changed(
+    trigger: Trigger<OnReplace, AssetMaterial>,
+    mut commands: Commands,
+    query: Query<&AssetMaterial>,
+    assets: Res<AssetServer>,
+) {
+    let entity = trigger.entity();
+    if let Ok(asset_material) = query.get(entity) {
+        info!("Updating material for entity {:?}: {}", entity, asset_material.path);
+        commands.entity(entity).insert(assets.load::<StandardMaterial>(&asset_material.path));
+    }
+}
+*/
+
+fn on_asset_material_removed(
+    trigger: Trigger<OnRemove, AssetMaterial>,
+    mut commands: Commands,
+) {
+    let entity = trigger.target();
+    if let Some(mut cmd) = commands.get_entity(entity) {
+        cmd.remove::<Handle<StandardMaterial>>();
+        info!("Removed material handle for entity {:?}", entity);
     }
 }
 
