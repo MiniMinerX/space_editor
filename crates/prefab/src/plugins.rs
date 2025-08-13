@@ -366,11 +366,10 @@ fn on_asset_mesh_added(
     let entity = trigger.target();
     if let Ok(asset_mesh) = query.get(entity) {
         info!("Loading mesh for entity {:?}: {}", entity, asset_mesh.path);
-        commands.entity(entity).insert(assets.load::<Mesh>(&asset_mesh.path));
+        commands.entity(entity).insert(Mesh3d(assets.load::<Mesh>(&asset_mesh.path)));
     }
 }
 
-/*
 fn on_asset_mesh_changed(
     trigger: Trigger<OnReplace, AssetMesh>,
     mut commands: Commands,
@@ -380,10 +379,9 @@ fn on_asset_mesh_changed(
     let entity = trigger.target();
     if let Ok(asset_mesh) = query.get(entity) {
         info!("Updating mesh for entity {:?}: {}", entity, asset_mesh.path);
-        commands.entity(entity).insert(assets.load::<Mesh>(&asset_mesh.path));
+        commands.entity(entity).insert(Mesh3d(assets.load::<Mesh>(&asset_mesh.path)));
     }
 }
-*/
 
 fn on_asset_mesh_removed(
     trigger: Trigger<OnRemove, AssetMesh>,
@@ -391,7 +389,7 @@ fn on_asset_mesh_removed(
 ) {
     let entity = trigger.target();
     if let Some(mut cmd) = commands.get_entity(entity) {
-        cmd.remove::<Handle<Mesh>>();
+        cmd.remove::<Mesh3d>();
         info!("Removed mesh handle for entity {:?}", entity);
     }
 }
@@ -406,24 +404,26 @@ fn on_asset_material_added(
     let entity = trigger.target();
     if let Ok(asset_material) = query.get(entity) {
         info!("Loading material for entity {:?}: {}", entity, asset_material.path);
-        commands.entity(entity).insert(assets.load::<StandardMaterial>(&asset_material.path));
+        commands.entity(entity).insert(MeshMaterial3d(
+            assets.load::<StandardMaterial>(&asset_material.path),
+        ));
     }
 }
 
-/*
 fn on_asset_material_changed(
     trigger: Trigger<OnReplace, AssetMaterial>,
     mut commands: Commands,
     query: Query<&AssetMaterial>,
     assets: Res<AssetServer>,
 ) {
-    let entity = trigger.entity();
+    let entity = trigger.target();
     if let Ok(asset_material) = query.get(entity) {
         info!("Updating material for entity {:?}: {}", entity, asset_material.path);
-        commands.entity(entity).insert(assets.load::<StandardMaterial>(&asset_material.path));
+        commands.entity(entity).insert(MeshMaterial3d(
+            assets.load::<StandardMaterial>(&asset_material.path),
+        ));
     }
 }
-*/
 
 fn on_asset_material_removed(
     trigger: Trigger<OnRemove, AssetMaterial>,
@@ -431,7 +431,7 @@ fn on_asset_material_removed(
 ) {
     let entity = trigger.target();
     if let Some(mut cmd) = commands.get_entity(entity) {
-        cmd.remove::<Handle<StandardMaterial>>();
+        cmd.remove::<MeshMaterial3d<StandardMaterial>>();
         info!("Removed material handle for entity {:?}", entity);
     }
 }
