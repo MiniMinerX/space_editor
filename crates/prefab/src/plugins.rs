@@ -145,6 +145,11 @@ impl Plugin for BasePrefabPlugin {
         //app.add_observer(on_asset_material_changed);
         app.add_observer(on_asset_material_removed);
 
+        app.add_systems(
+            Update,
+            (batched_sync_asset_mesh, batched_sync_asset_material).in_set(PrefabSet::DetectPrefabChange),
+        );
+
         //material registration
         app.register_type::<Color>();
         app.register_type::<AlphaMode>();
