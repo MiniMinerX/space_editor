@@ -17,6 +17,18 @@ use load::*;
 use save::*;
 use spawn_system::*;
 
+// Resource to track entities that need mesh loading
+#[derive(Resource, Default)]
+pub struct PendingMeshLoads {
+    pub entities: HashSet<Entity>,
+}
+
+// Resource to track entities that need material loading
+#[derive(Resource, Default)]
+pub struct PendingMaterialLoads {
+    pub entities: HashSet<Entity>,
+}
+
 /// This plugin contains all components and logic of prefabs
 pub struct PrefabPlugin;
 
@@ -33,6 +45,8 @@ impl Plugin for BasePrefabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.init_state::<EditorState>();
+        app.init_resource::<PendingMeshLoads>();
+        app.init_resource::<PendingMaterialLoads>();
 
         if !app.is_plugin_added::<HookPlugin>() {
             app.add_plugins(HookPlugin);
@@ -317,6 +331,7 @@ fn remove_computed_visibility(
     }
 }
 
+/*
 fn sync_asset_mesh(
     mut commands: Commands,
     changed: Query<(Entity, &AssetMesh), Changed<AssetMesh>>,
@@ -434,6 +449,157 @@ fn on_asset_material_removed(
         cmd.remove::<MeshMaterial3d<StandardMaterial>>();
         info!("Removed material handle for entity {:?}", entity);
     }
+}
+*/
+
+// Modified observer - just tracks the entity, doesn't load immediately
+fn on_asset_mesh_added_tracker(
+    trigger: Trigger<OnAdd, AssetMesh>,
+    mut pending_loads: ResMut<PendingMeshLoads>,
+    query: Query<&AssetMesh>,
+) {
+    let entity = trigger.target();
+    if query.get(entity).is_ok() {
+        info!("Queuing mesh load for entity {:?}", entity);
+        pending_loads.entities.insert(entity);
+    }
+}
+
+// Batched sync system - processes all pending loads at once
+fn batched_sync_asset_mesh(
+    mut commands: Commands,
+    mut pending_loads: ResMut<PendingMeshLoads>,
+    query: Query<&AssetMesh>,
+    assets: Res<AssetServer>,
+) {
+    if pending_loads.entities.is_empty() {
+        return;
+    }
+
+    // Group entities by their mesh path to avoid duplicate handles
+    let mut path_to_entities: std::collections::HashMap<String, Vec<Entity>> = std::collections::HashMap::new();
+    
+    // Collect valid entities and group by path
+    let mut valid_entities = Vec::new();
+    for &entity in &pending_loads.entities {
+        if let Ok(asset_mesh) = query.get(entity) {
+            path_to_entities
+                .entry(asset_mesh.path.clone())
+                .or_default()
+                .push(entity);
+            valid_entities.push(entity);
+        }
+    }
+
+    // Load each unique mesh path once and apply to all entities that need it
+    for (path, entities) in path_to_entities {
+        info!("Loading mesh '{}' for {} entities", path, entities.len());
+        let mesh_handle = assets.load::<Mesh>(&path);
+        
+        for entity in entities {
+            commands.entity(entity).insert(Mesh3d(mesh_handle.clone()));
+        }
+    }
+
+    // Clear the pending loads
+    pending_loads.entities.clear();
+    
+    info!("Batched mesh loading completed for {} entities", valid_entities.len());
+}
+
+// Keep the removal observer as-is since it's immediate
+fn on_asset_mesh_removed(
+    trigger: Trigger<OnRemove, AssetMesh>,
+    mut commands: Commands,
+) {
+    let entity = trigger.target();
+    if let Ok(mut cmd) = commands.get_entity(entity) {
+        cmd.remove::<Mesh3d>();
+        info!("Removed mesh handle for entity {:?}", entity);
+    }
+}
+
+// Similar pattern for materials
+fn on_asset_material_added_tracker(
+    trigger: Trigger<OnAdd, AssetMaterial>,
+    mut pending_loads: ResMut<PendingMaterialLoads>,
+    query: Query<&AssetMaterial>,
+) {
+    let entity = trigger.target();
+    if query.get(entity).is_ok() {
+        info!("Queuing material load for entity {:?}", entity);
+        pending_loads.entities.insert(entity);
+    }
+}
+
+fn batched_sync_asset_material(
+    mut commands: Commands,
+    mut pending_loads: ResMut<PendingMaterialLoads>,
+    query: Query<&AssetMaterial>,
+    assets: Res<AssetServer>,
+) {
+    if pending_loads.entities.is_empty() {
+        return;
+    }
+
+    // Group entities by their material path
+    let mut path_to_entities: std::collections::HashMap<String, Vec<Entity>> = std::collections::HashMap::new();
+    
+    let mut valid_entities = Vec::new();
+    for &entity in &pending_loads.entities {
+        if let Ok(asset_material) = query.get(entity) {
+            path_to_entities
+                .entry(asset_material.path.clone())
+                .or_default()
+                .push(entity);
+            valid_entities.push(entity);
+        }
+    }
+
+    // Load each unique material path once and apply to all entities
+    for (path, entities) in path_to_entities {
+        info!("Loading material '{}' for {} entities", path, entities.len());
+        let material_handle = assets.load::<StandardMaterial>(&path);
+        
+        for entity in entities {
+            commands.entity(entity).insert(MeshMaterial3d(material_handle.clone()));
+        }
+    }
+
+    // Clear the pending loads
+    pending_loads.entities.clear();
+    
+    info!("Batched material loading completed for {} entities", valid_entities.len());
+}
+
+fn on_asset_material_removed(
+    trigger: Trigger<OnRemove, AssetMaterial>,
+    mut commands: Commands,
+) {
+    let entity = trigger.target();
+    if let Ok(mut cmd) = commands.get_entity(entity) {
+        cmd.remove::<MeshMaterial3d<StandardMaterial>>();
+        info!("Removed material handle for entity {:?}", entity);
+    }
+}
+
+// Optional: Add a system to handle changes to existing AssetMesh components
+fn on_asset_mesh_changed_tracker(
+    trigger: Trigger<OnReplace, AssetMesh>,
+    mut pending_loads: ResMut<PendingMeshLoads>,
+) {
+    let entity = trigger.target();
+    info!("Queuing mesh update for entity {:?}", entity);
+    pending_loads.entities.insert(entity);
+}
+
+fn on_asset_material_changed_tracker(
+    trigger: Trigger<OnReplace, AssetMaterial>,
+    mut pending_loads: ResMut<PendingMaterialLoads>,
+) {
+    let entity = trigger.target();
+    info!("Queuing material update for entity {:?}", entity);
+    pending_loads.entities.insert(entity);
 }
 
 #[cfg(test)]
