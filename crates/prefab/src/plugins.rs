@@ -131,7 +131,7 @@ impl Plugin for BasePrefabPlugin {
         //    Update,
         //    sync_asset_mesh.in_set(PrefabSet::DetectPrefabChange),
         //);
-        app.add_observer(on_asset_mesh_added);
+        app.add_observer(on_asset_mesh_added_tracker);
         //app.add_observer(on_asset_mesh_changed);
         app.add_observer(on_asset_mesh_removed);
 
@@ -140,7 +140,7 @@ impl Plugin for BasePrefabPlugin {
         //    Update,
         //    sync_asset_material.in_set(PrefabSet::DetectPrefabChange),
         //);
-        app.add_observer(on_asset_material_added);
+        app.add_observer(on_asset_material_added_tracker);
         //app.add_observer(on_asset_material_changed);
         app.add_observer(on_asset_material_removed);
 
