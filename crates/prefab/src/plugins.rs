@@ -6,7 +6,6 @@ use bevy::{
 use bevy_scene_hook::HookPlugin;
 use space_shared::toast::ToastMessage;
 use space_shared::{LightAreaToggle, PrefabMarker};
-use std::collections::HashMap;
 
 use crate::{
     component, editor_registry::EditorRegistryExt, load, prelude::EditorRegistryPlugin, save,
@@ -17,12 +16,6 @@ use component::*;
 use load::*;
 use save::*;
 use spawn_system::*;
-
-#[derive(Resource, Default)]
-pub struct AssetCache {
-    meshes: HashMap<String, Handle<Mesh>>,
-    materials: HashMap<String, Handle<StandardMaterial>>,
-}
 
 /// This plugin contains all components and logic of prefabs
 pub struct PrefabPlugin;
@@ -40,7 +33,6 @@ impl Plugin for BasePrefabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.init_state::<EditorState>();
-        app.insert_resource(AssetCache::default());
 
         if !app.is_plugin_added::<HookPlugin>() {
             app.add_plugins(HookPlugin);
@@ -364,29 +356,17 @@ fn sync_asset_material(
     }
 }
 
+// AssetMesh observers
 fn on_asset_mesh_added(
     trigger: Trigger<OnAdd, AssetMesh>,
     mut commands: Commands,
-    query: Query<(&AssetMesh, Option<&Mesh3d>)>,
+    query: Query<&AssetMesh>,
     assets: Res<AssetServer>,
-    mut cache: ResMut<AssetCache>,
 ) {
     let entity = trigger.target();
-    if let Ok((asset_mesh, existing_mesh)) = query.get(entity) {
-        // Don't reload if already has a mesh
-        if existing_mesh.is_some() {
-            return;
-        }
-
-        // Use cached handle or create new one
-        let handle = cache.meshes.entry(asset_mesh.path.clone())
-            .or_insert_with(|| {
-                info!("Loading NEW mesh: {}", asset_mesh.path);
-                assets.load::<Mesh>(&asset_mesh.path)
-            })
-            .clone();
-
-        commands.entity(entity).insert(Mesh3d(handle));
+    if let Ok(asset_mesh) = query.get(entity) {
+        info!("Loading mesh for entity {:?}: {}", entity, asset_mesh.path);
+        commands.entity(entity).insert(Mesh3d(assets.load::<Mesh>(&asset_mesh.path)));
     }
 }
 
@@ -414,28 +394,19 @@ fn on_asset_mesh_removed(
     }
 }
 
+// AssetMaterial observers
 fn on_asset_material_added(
     trigger: Trigger<OnAdd, AssetMaterial>,
     mut commands: Commands,
-    query: Query<(&AssetMaterial, Option<&MeshMaterial3d<StandardMaterial>>)>,
+    query: Query<&AssetMaterial>,
     assets: Res<AssetServer>,
-    mut cache: ResMut<AssetCache>,
 ) {
     let entity = trigger.target();
-    if let Ok((asset_material, existing_material)) = query.get(entity) {
-        // Don't reload if already has a material
-        if existing_material.is_some() {
-            return;
-        }
-
-        let handle = cache.materials.entry(asset_material.path.clone())
-            .or_insert_with(|| {
-                info!("Loading NEW material: {}", asset_material.path);
-                assets.load::<StandardMaterial>(&asset_material.path)
-            })
-            .clone();
-
-        commands.entity(entity).insert(MeshMaterial3d(handle));
+    if let Ok(asset_material) = query.get(entity) {
+        info!("Loading material for entity {:?}: {}", entity, asset_material.path);
+        commands.entity(entity).insert(MeshMaterial3d(
+            assets.load::<StandardMaterial>(&asset_material.path),
+        ));
     }
 }
 
