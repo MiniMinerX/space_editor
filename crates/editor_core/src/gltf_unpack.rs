@@ -7,14 +7,14 @@ use space_shared::PrefabMarker;
 
 use super::{BackgroundTask, BackgroundTaskStorage};
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 /// Event to handle GLTF path
 pub struct EditorUnpackGltf {
     pub path: String,
     pub parent: Option<Entity>,
 }
 
-#[derive(Event, Clone)]
+#[derive(BufferedEvent, Clone)]
 struct GltfLoaded {
     handle: Handle<Gltf>,
     parent: Option<Entity>,
@@ -105,7 +105,7 @@ fn unpack_gltf(world: &mut World) {
             .get_resource::<Assets<Gltf>>()
             .and_then(|gltfs| gltfs.get(&gltf_loaded.handle))
         else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_event(space_shared::toast::ToastMessage::new(
                 "Gltf asset not found or empty",
                 space_shared::toast::ToastKind::Error,
             ));
@@ -115,21 +115,21 @@ fn unpack_gltf(world: &mut World) {
         let mut commands = Commands::new(&mut command_queue, world);
 
         let Some(gltf_nodes) = world.get_resource::<Assets<GltfNode>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_event(space_shared::toast::ToastMessage::new(
                 "Gltf Node asset not found",
                 space_shared::toast::ToastKind::Error,
             ));
             continue;
         };
         let Some(gltf_meshs) = world.get_resource::<Assets<GltfMesh>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_event(space_shared::toast::ToastMessage::new(
                 "Gltf Mesh asset not found",
                 space_shared::toast::ToastKind::Error,
             ));
             continue;
         };
         let Some(scenes) = world.get_resource::<Assets<Scene>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_event(space_shared::toast::ToastMessage::new(
                 "Scene asset not found",
                 space_shared::toast::ToastKind::Error,
             ));

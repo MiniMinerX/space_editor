@@ -226,18 +226,18 @@ pub struct PersistenceRegistry {
     mode: PersistenceMode,
 }
 
-#[derive(Event, Default)]
+#[derive(BufferedEvent, Default)]
 pub struct PersistenceLoaded<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub enum PersistenceEvent {
     Save,
     Load,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 enum PersistenceResourceBroadcastEvent {
     Unpack,
     Pack,

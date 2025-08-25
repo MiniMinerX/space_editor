@@ -1,3 +1,7 @@
+use bevy::ecs::entity::EntityRow;
+use nonmax::NonMaxU32;
+
+
 use super::*;
 
 #[cfg(test)]
@@ -297,10 +301,13 @@ fn undo_ignore_ticks() {
         .insert(Entity::PLACEHOLDER, OneFrameUndoIgnore { counter: 0 });
     storage
         .storage
-        .insert(Entity::from_raw(2), OneFrameUndoIgnore { counter: 1 });
+        .insert(
+            Entity::from_raw(EntityRow::new(NonMaxU32::new(2).unwrap())),
+            OneFrameUndoIgnore { counter: 1 }
+        );
     storage
         .storage
-        .insert(Entity::from_raw(3), OneFrameUndoIgnore { counter: 2 });
+        .insert(Entity::from_raw(EntityRow::new(NonMaxU32::new(3).unwrap())), OneFrameUndoIgnore { counter: 2 });
 
     let mut app = App::new();
     app.insert_resource(storage);

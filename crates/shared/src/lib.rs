@@ -62,7 +62,7 @@ pub enum EditorPrefabPath {
     MemoryCache,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub enum EditorEvent {
     Load(EditorPrefabPath),
     Save(EditorPrefabPath),

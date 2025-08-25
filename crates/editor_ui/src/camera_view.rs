@@ -1,13 +1,10 @@
 use bevy::{
-    core_pipeline::tonemapping::DebandDither,
-    prelude::*,
-    render::{
-        camera::{CameraRenderGraph, RenderTarget, TemporalJitter},
+    camera::RenderTarget, core_pipeline::tonemapping::DebandDither, prelude::*, render::{
+        camera::{CameraRenderGraph, TemporalJitter},
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
-    },
-    window::PrimaryWindow,
+    }, window::PrimaryWindow
 };
 use bevy_egui::{
     egui::{self, RichText},
@@ -87,7 +84,7 @@ impl EditorTab for CameraViewTab {
                             Camera {
                                 is_active: true,
                                 order: 2,
-                                clear_color: bevy::render::camera::ClearColorConfig::Default,
+                                clear_color: bevy::camera::ClearColorConfig::Default,
                                 ..default()
                             },
                             RenderLayers::layer(0),
@@ -108,7 +105,7 @@ impl EditorTab for CameraViewTab {
                             Camera {
                                 is_active: false,
                                 order: 2,
-                                clear_color: bevy::render::camera::ClearColorConfig::Default,
+                                clear_color: bevy::camera::ClearColorConfig::Default,
                                 ..default()
                             },
                             RenderLayers::layer(0),
@@ -390,7 +387,7 @@ fn set_camera_viewport(
         Vec2::new(preferred_width, preferred_height) / 2.0,
     );
 
-    let new_viewport = Some(bevy::render::camera::Viewport {
+    let new_viewport = Some(bevy::camera::Viewport {
         physical_position: UVec2::new(view_image_rect.min.x as u32, view_image_rect.min.y as u32),
         physical_size: UVec2::new(
             view_image_rect.size().x as u32,

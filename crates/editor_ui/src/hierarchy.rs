@@ -17,7 +17,7 @@ use space_editor_tabs::prelude::*;
 use crate::{colors::WARN_COLOR, editor_tab_name::EditorTabName};
 
 /// Event to clone entity with clone all registered components
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub struct CloneEvent {
     pub id: Entity,
 }
@@ -343,7 +343,7 @@ fn clone_enitites(
             if let Ok(entity) = query.get(src_id) {
                 if entity.contains::<PrefabMarker>() {
                     let mut cmds = commands.entity(dst_id).insert(ClonedEntity);
-                    commands.entity(src_id).clone_with(dst_id, |_| {});
+                    commands.entity(src_id).clone_with_opt_in(dst_id, |_| {});
 
                     // editor_registry.clone_entity_flat(&mut cmds, &entity);
 

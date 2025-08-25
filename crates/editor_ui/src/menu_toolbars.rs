@@ -40,25 +40,25 @@ impl Plugin for BottomMenuPlugin {
         app.init_resource::<MenuToolbarState>();
 
         app.add_systems(
-            Update,
+            EguiPrimaryContextPass,
             bottom_menu
                 .before(EditorLoadSet)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
         app.add_systems(
-            Update,
+            EguiPrimaryContextPass,
             top_menu
                 .before(EditorLoadSet)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
-        app.add_systems(Update, in_game_menu.in_set(EditorSet::Game));
+        app.add_systems(EguiPrimaryContextPass, in_game_menu.in_set(EditorSet::Game).run_if(in_state(EditorState::Game)));
         app.add_event::<MenuLoadEvent>();
     }
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub struct MenuLoadEvent {
     pub path: String,
 }
@@ -81,9 +81,14 @@ fn in_game_menu(
     mut time: ResMut<Time<Virtual>>,
     sizing: Res<Sizing>,
 ) {
+    let ctx = match ctxs.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+
     egui::TopBottomPanel::top("top_gameplay_panel")
         .min_height(&sizing.icon.to_size() + 8.)
-        .show(ctxs.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             let frame_duration = time.delta();
             if !time.is_paused() {
                 *smoothed_dt = (*smoothed_dt).mul_add(0.98, time.delta_secs() * 0.02);
@@ -163,7 +168,11 @@ pub fn bottom_menu(
     sizing: Res<Sizing>,
     q_pan_cam: Query<&PanOrbitCamera>,
 ) {
-    let ctx = ctxs.ctx_mut();
+    let ctx = match ctxs.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+
     egui::TopBottomPanel::bottom("bottom_menu")
         .min_height(&sizing.icon.to_size().max(sizing.text) + 4.)
         .show(ctx, |ui| {
@@ -307,7 +316,10 @@ pub fn top_menu(
     toasts: Res<ToastStorage>,
     sizing: Res<Sizing>,
 ) {
-    let ctx = ctxs.ctx_mut();
+    let ctx = match ctxs.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     egui::TopBottomPanel::top("top_menu_bar")
         .min_height(&sizing.icon.to_size() + 8.)
         .show(ctx, |ui| {

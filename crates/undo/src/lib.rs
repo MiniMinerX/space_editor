@@ -89,7 +89,7 @@ pub enum UndoSet {
     Global,
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub struct UndoRedoApplied<T> {
     pub entity: Entity,
     _phantom: std::marker::PhantomData<T>,
@@ -245,13 +245,13 @@ pub enum ChangeResult {
     SuccessWithRemap(Vec<(Entity, Entity)>),
 }
 
-#[derive(Event)]
+#[derive(BufferedEvent)]
 pub enum UndoRedo {
     Undo,
     Redo,
 }
 
-#[derive(Event, Clone)]
+#[derive(BufferedEvent, Clone)]
 pub struct NewChange {
     pub change: Arc<dyn EditorChange + Send + Sync>,
 }

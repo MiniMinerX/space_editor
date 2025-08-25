@@ -1,6 +1,5 @@
 use crate::*;
 use bevy::{color::palettes::tailwind::{PINK_100, RED_500}, picking::pointer::PointerInteraction, prelude::*};
-use transform_gizmo_bevy::GizmoTarget;
 
 
 
@@ -23,7 +22,7 @@ pub fn plugin(app: &mut App) {
         draw_mesh_intersections.run_if(in_state(EditorState::Editor))
     );
 
-    app.add_event::<AddMarkersEvent>();
+    //app.add_event::<AddMarkersEvent>();
 
     //app.add_observer(select_listener);
     //app.add_observer(recursive_add_markers);
@@ -48,23 +47,23 @@ fn auto_add_markers(
     }
 }
 
-#[derive(Event, Clone)]
+#[derive(EntityEvent, Clone)]
 struct AddMarkersEvent;
 
 fn recursive_add_markers(
-    trigger: Trigger<AddMarkersEvent>,
+    trigger: On<AddMarkersEvent>,
     q_children: Query<&Children>,
     q_meshes: Query<Entity, With<Mesh3d>>,
     mut commands: Commands,
 ) {
-    if q_meshes.contains(trigger.target()) {
-        commands.entity(trigger.target()).insert(Pickable {
+    if q_meshes.contains(trigger.entity()) {
+        commands.entity(trigger.entity()).insert(Pickable {
             should_block_lower: true,
             is_hoverable: true,
         });
     }
 
-    if let Ok(children) = q_children.get(trigger.target()) {
+    if let Ok(children) = q_children.get(trigger.entity()) {
         for child in children.iter() {
             commands.trigger_targets(AddMarkersEvent, child.entity());
         }
@@ -112,7 +111,7 @@ fn reemit_pointer_click(
 }
 
 pub fn select_listener(
-    mut trigger: Trigger<SelectEvent>,
+    mut trigger: On<SelectEvent>,
     mut commands: Commands,
     query: Query<Entity, With<Selected>>,
     // may need to be optimized a bit so that there is less overlap
@@ -120,27 +119,27 @@ pub fn select_listener(
     parents: Query<&ChildOf>,
     pan_orbit_state: ResMut<EditorCameraEnabled>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    gizmo_query: Query<&GizmoTarget>,
+    //gizmo_query: Query<&GizmoTarget>,
 ) {
-    if gizmo_query.iter().any(|gizmo| gizmo.is_active()) {
-        return;
-    }
+    //if gizmo_query.iter().any(|gizmo| gizmo.is_active()) {
+    //    return;
+    //}
 
     if !pan_orbit_state.0 {
         trigger.propagate(false);
         return;
     }
 
-    info!("Select Event: {:?}", trigger.target());
+    info!("Select Event: {:?}", trigger.entity());
 
-    if let Ok(entity) = prefabs.get(trigger.target()) {
+    if let Ok(entity) = prefabs.get(trigger.entity()) {
         commands.entity(entity).insert(Selected);
         if !keyboard.pressed(KeyCode::ShiftLeft) {
             for e in query.iter() {
                 commands.entity(e).remove::<Selected>();
             }
         }
-    } else if let Ok(parent) = parents.get(trigger.target()) {
+    } else if let Ok(parent) = parents.get(trigger.entity()) {
         // Just stupid propagation (Need to make it with Event trait)
         commands.trigger_targets(SelectEvent, parent.parent()); 
     }
@@ -150,7 +149,7 @@ pub fn select_listener(
 
 
 /// This event used for selecting entities
-#[derive(Event, Clone)]
+#[derive(EntityEvent, Clone)]
 pub struct SelectEvent;
 
 pub fn delete_selected(
@@ -172,7 +171,7 @@ pub fn delete_selected(
 
 
 pub fn on_pointer_click(
-    mut trigger: Trigger<Pointer<Pressed>>,
+    mut trigger: On<Pointer<Interaction>>,
     mut commands: Commands,
     q_meshes: Query<Entity, With<Mesh3d>>,
 ) {

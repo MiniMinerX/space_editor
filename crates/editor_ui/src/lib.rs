@@ -56,21 +56,16 @@ pub mod ui_picking;
 
 pub mod startup_systems;
 
-use bevy_debug_grid::{Grid, GridAxis, SubGrid, TrackedGrid};
+//use bevy_debug_grid::{Grid, GridAxis, SubGrid, TrackedGrid};
 
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin, PanOrbitCameraSystemSet};
 use camera_view::CameraViewTabPlugin;
 use space_editor_core::prelude::*;
 
 use bevy::{
-    app::PluginGroupBuilder,
-    input::common_conditions::input_toggle_active,
-    pbr::CascadeShadowConfigBuilder,
-    prelude::*,
-    render::{render_resource::PrimitiveTopology, view::RenderLayers},
-    window::PrimaryWindow,
+    app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::PrimitiveTopology, window::PrimaryWindow
 };
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{egui, EguiContext, UiRenderOrder};
 
 use space_editor_tabs::prelude::*;
 
@@ -178,14 +173,16 @@ impl PluginGroup for EditorPluginGroup {
             .add(EditorDefaultBundlesPlugin)
             .add(EditorDefaultCameraPlugin)
             .add(bevy_egui::EguiPlugin {
-                enable_multipass_for_primary_context: false,
+                //enable_multipass_for_primary_context: false,
+                ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+                ..Default::default()
             })
             //.add(EventListenerPlugin::<selection::SelectEvent>::default())
             .add(DefaultInspectorConfigPlugin);
         res = EditorUiPlugin::default().add_plugins_to_group(res);
         res.add(PanOrbitCameraPlugin)
             .add(selection::plugin)
-            .add(bevy_debug_grid::DebugGridPlugin::without_floor_grid())
+            //.add(bevy_debug_grid::DebugGridPlugin::without_floor_grid())
             .add(
                 WorldInspectorPlugin::default()
                     .run_if(in_state(EditorState::Game))
@@ -334,7 +331,7 @@ pub trait FlatPluginList {
 
 /// This method prepare default lights and camera for editor UI. You can create own conditions for your editor and use this method how example
 pub fn simple_editor_setup(mut commands: Commands) {
-    commands.insert_resource(bevy::pbr::DirectionalLightShadowMap { size: 4096 });
+    commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
 
     // By default EditorState is Game. Set it to Editor to show editor ui
     commands.set_state(EditorState::Editor);
@@ -355,6 +352,7 @@ pub fn simple_editor_setup(mut commands: Commands) {
     let silver = Color::srgb(0.75, 0.75, 0.75);
     let grey = Color::srgb(0.5, 0.5, 0.5);
 
+    /* 
     commands.spawn((
         Grid {
             spacing: 10.0_f32,
@@ -378,6 +376,7 @@ pub fn simple_editor_setup(mut commands: Commands) {
         Name::from("Debug Grid"),
         grid_render_layer,
     ));
+    */
 
     // camera
     commands.spawn((

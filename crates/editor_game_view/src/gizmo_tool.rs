@@ -1,12 +1,12 @@
-use bevy::{prelude::*, render::camera::CameraProjection};
+use bevy::{prelude::*};
 use bevy_egui::egui::{self, Key};
 use space_editor_core::prelude::*;
 use space_editor_ui::{icons::*, EditorGizmo};
 use space_editor_ui::prelude::CloneEvent;
 use space_editor_ui::{colors::*, sizing::Sizing};
 use space_shared::*;
-use transform_gizmo_bevy::{EnumSet, Gizmo, GizmoMode};
-use transform_gizmo_egui::GizmoExt;
+//use transform_gizmo_bevy::{EnumSet, Gizmo, GizmoMode};
+//use transform_gizmo_egui::GizmoExt;
 use crate::*;
 use crate::game_view_tool::*;
 
@@ -18,7 +18,7 @@ impl Plugin for GizmoToolPlugin {
     fn build(&self, app: &mut App) {
 
 
-        app.editor_tool(GizmoTool::default());
+        //app.editor_tool(GizmoTool::default());
 
         if let Some(mut game_view_tab) = app.world_mut().get_resource_mut::<GameViewTab>() {
             game_view_tab.active_tool = Some(0);
@@ -32,7 +32,7 @@ impl Plugin for GizmoToolPlugin {
         app.editor_hotkey(GizmoHotkey::Multiple, vec![KeyCode::ShiftLeft]);
         app.editor_hotkey(GizmoHotkey::Clone, vec![KeyCode::AltLeft]);
 
-        app.add_systems(Update, draw_lines_system.in_set(EditorSet::Editor));
+        //app.add_systems(Update, draw_lines_system.in_set(EditorSet::Editor));
     }
 }
 
@@ -59,6 +59,7 @@ impl Hotkey for GizmoHotkey {
     }
 }
 
+/* 
 pub struct GizmoTool {
     pub gizmo_mode: EnumSet<GizmoMode>,
     pub is_move_cloned_entities: bool,
@@ -469,6 +470,9 @@ impl GameViewTool for GizmoTool {
         }
     }
 }
+    */
+
+    
 
 #[derive(Resource, Default)]
 pub struct MultipleCenter {
@@ -479,6 +483,7 @@ trait ToButton {
     fn to_button(&self, size: &Sizing) -> egui::Button;
 }
 
+/* 
 impl ToButton for EnumSet<GizmoMode> {
     fn to_button(&self, size: &Sizing) -> egui::Button {
         if *self == GizmoMode::all_translate() {
@@ -504,12 +509,14 @@ fn draw_lines_system(
         }
     }
 }
+    */
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    /* 
     fn test_default_gizmo_tool() {
         let default_tool = GizmoTool::default();
 
@@ -517,6 +524,7 @@ mod tests {
         assert_eq!(default_tool.is_move_cloned_entities, false);
         assert_eq!(default_tool.name(), "Gizmo");
     }
+    */
 
     #[test]
     fn test_gizmo_hotkey_name() {

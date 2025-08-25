@@ -10,10 +10,10 @@ use std::fmt::Display;
 
 use bevy::{ecs::{schedule::{graph::GraphInfo, Chain, Schedulable}, system::ScheduleSystem, world::CommandQueue}, platform::collections::HashMap, prelude::*, window::PrimaryWindow};
 
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{egui, EguiContext, PrimaryEguiContext};
 
 use editor_tab::*;
-use egui_dock::DockArea;
+use egui_dock::{DockArea, LeafNode, SplitNode};
 use schedule_editor_tab::*;
 use start_layout::StartLayout;
 use tab_name::{TabName, TabNameHolder};
@@ -40,8 +40,8 @@ pub fn show_editor_ui(world: &mut World) {
     // info!("show_editor_ui");
 
     let Ok(egui_context) = world
-        .query_filtered::<&mut EguiContext, With<PrimaryWindow>>()
-        .get_single(world)
+        .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+        .single(world)
     else {
         info!("show_editor_ui: no egui context");
         return;
@@ -97,26 +97,26 @@ impl EditorUi {
         for (_surface_index, tab) in self.tree.iter_all_nodes() {
             match tab {
                 egui_dock::Node::Empty => {}
-                egui_dock::Node::Leaf {
+                egui_dock::Node::Leaf(LeafNode {
                     rect: _,
                     viewport: _,
                     tabs,
                     active: _,
                     scroll: _,
                     collapsed: _,
-                } => visible.extend(tabs.clone()),
-                egui_dock::Node::Vertical {
+                }) => visible.extend(tabs.clone()),
+                egui_dock::Node::Vertical(SplitNode {
                     rect: _,
                     fraction: _,
                     collapsed_leaf_count: _,
                     fully_collapsed: _,
-                } => {}
-                egui_dock::Node::Horizontal {
+                }) => {}
+                egui_dock::Node::Horizontal(SplitNode {
                     rect: _,
                     fraction: _,
                     collapsed_leaf_count: _,
                     fully_collapsed: _,
-                } => {}
+                }) => {}
             }
         }
 

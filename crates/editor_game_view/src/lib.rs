@@ -2,7 +2,7 @@ pub mod game_view_tool;
 pub mod gizmo_tool;
 
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{camera::Viewport, prelude::*, window::PrimaryWindow};
 use bevy_egui::{
     egui::{self, RichText, Widget},
     EguiContextSettings,
@@ -10,7 +10,7 @@ use bevy_egui::{
 use game_view_tool::GameViewTool;
 use space_editor_ui::{colors::{SPECIAL_BG_COLOR, TEXT_COLOR, WARN_COLOR}, prelude::{EditorTabName, SetCameraViewport, ShowEditorUi}, ui_picking::NonUIAreas};
 use space_undo::UndoRedo;
-use transform_gizmo_bevy::GizmoMode;
+//use transform_gizmo_bevy::GizmoMode;
 
 use space_shared::*;
 
@@ -64,7 +64,7 @@ pub struct GameViewTab {
     pub viewport_rect: Option<egui::Rect>,
     pub tools: Vec<Box<dyn GameViewTool + 'static + Send + Sync>>,
     pub active_tool: Option<usize>,
-    pub gizmo_mode: GizmoMode,
+    //pub gizmo_mode: GizmoMode,
     pub smoothed_dt: f32,
 }
 
@@ -72,7 +72,7 @@ impl Default for GameViewTab {
     fn default() -> Self {
         Self {
             viewport_rect: None,
-            gizmo_mode: GizmoMode::TranslateView,
+            //gizmo_mode: GizmoMode::TranslateView,
             smoothed_dt: 0.0,
             tools: vec![],
             active_tool: None,
@@ -247,7 +247,7 @@ pub fn set_camera_viewport(
         viewport_size.y = (window_height - viewport_pos.y - 1.0).max(1.0);
     }
 
-    cam.viewport = Some(bevy::render::camera::Viewport {
+    cam.viewport = Some(Viewport {
         physical_position: UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32),
         physical_size: UVec2::new(viewport_size.x as u32, viewport_size.y as u32),
         depth: 0.0..1.0,

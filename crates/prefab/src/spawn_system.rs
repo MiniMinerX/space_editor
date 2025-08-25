@@ -225,7 +225,6 @@ pub fn sync_spritesheet(
                         flip_x: false,
                         flip_y: false,
                         rect: None,             // Optional: Define a sub-region if needed
-                        anchor: Anchor::Center, // Default anchor or adjust
                         image_mode: SpriteImageMode::default(), // Default or customized mode
                     })
                     .insert(Transform::default())

@@ -117,7 +117,7 @@ pub fn change_camera_in_play(
             ));
             return;
         };
-        cam.viewport = Some(bevy::render::camera::Viewport {
+        cam.viewport = Some(bevy::camera::Viewport {
             physical_position: UVec2::new(0, 0),
             physical_size: UVec2::new(window.width() as u32, window.height() as u32),
             depth: 0.0..1.0,

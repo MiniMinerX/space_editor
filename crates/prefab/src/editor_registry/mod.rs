@@ -107,7 +107,7 @@ pub struct SendEvent {
 }
 
 impl SendEvent {
-    pub fn new<T: Default + Event + Resource + Clone>() -> Self {
+    pub fn new<T: Default + BufferedEvent + Resource + Clone>() -> Self {
         let path = std::any::type_name::<T>().to_string();
         let name = path.split("::").last().unwrap_or("UnnamedEvent").into();
         let type_id = TypeId::of::<T>();
@@ -117,7 +117,7 @@ impl SendEvent {
             type_id,
             func: Arc::new(move |world| {
                 if let Some(event) = world.get_resource::<T>().cloned() {
-                    world.send_event(event);
+                    world.write_event(event);
                 }
             }),
         }
@@ -224,7 +224,7 @@ impl EditorRegistry {
 
     /// Register new event, which will be shown in editor UI and can be sent
     pub fn event_register<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: BufferedEvent + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) {
@@ -283,7 +283,7 @@ pub trait EditorRegistryExt {
 
     /// register new event in editor UI
     fn editor_registry_event<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: BufferedEvent + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) -> &mut Self;
@@ -382,7 +382,7 @@ impl EditorRegistryExt for App {
     }
 
     fn editor_registry_event<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: BufferedEvent + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) -> &mut Self {
@@ -525,7 +525,7 @@ mod tests {
 
     #[test]
     fn send_events() {
-        #[derive(Default, Event, Resource, Clone, Debug)]
+        #[derive(Default, BufferedEvent, Resource, Clone, Debug)]
         struct AnEvent {
             val: usize,
         }
@@ -599,7 +599,7 @@ mod tests {
 
     #[test]
     fn event_editor_registration() {
-        #[derive(Default, Event, Resource, Clone, Debug, Reflect)]
+        #[derive(Default, BufferedEvent, Resource, Clone, Debug, Reflect)]
         struct AnEvent {
             val: usize,
         }

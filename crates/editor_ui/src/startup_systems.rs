@@ -3,7 +3,9 @@ use bevy_egui::*;
 
 
 fn install_image_loaders(mut ctx: EguiContexts) {
-    egui_extras::install_image_loaders(ctx.ctx_mut());
+    if let Ok(first_ctx) = ctx.ctx_mut() {
+        egui_extras::install_image_loaders(first_ctx);
+    }
 }
 
 pub struct StartupSystems;
