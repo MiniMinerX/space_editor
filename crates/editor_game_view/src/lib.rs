@@ -2,7 +2,7 @@ pub mod game_view_tool;
 pub mod gizmo_tool;
 
 
-use bevy::{camera::Viewport, prelude::*, window::PrimaryWindow};
+use bevy::{camera::Viewport, ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
 use bevy_egui::{
     egui::{self, debug_text::print, RichText, Widget},
     EguiContextSettings, EguiPrimaryContextPass,
@@ -70,6 +70,9 @@ pub struct GameViewTab {
     pub smoothed_dt: f32,
 }
 
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GameViewEguiContextPass;
+
 impl Default for GameViewTab {
     fn default() -> Self {
         Self {
@@ -93,6 +96,11 @@ impl EditorTab for GameViewTab {
             world.write_event(UndoRedo::Redo);
             info!("Redo command");
         }
+
+        ui.style_mut().visuals.panel_fill = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.window_fill = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.extreme_bg_color = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.faint_bg_color = egui::Color32::TRANSPARENT;
 
         //println!("GameViewTab UI");
         ui.horizontal(|ui| {
