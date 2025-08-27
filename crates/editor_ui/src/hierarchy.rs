@@ -89,8 +89,7 @@ pub fn show_hierarchy(
     ui.spacing();
     let lower_filter = state.entity_filter.to_lowercase();
 
-    // Collect and filter entities once
-    let filtered_entities: Vec<_> = if state.show_editor_entities {
+    let mut filtered_entities: Vec<_> = if state.show_editor_entities {
         all_entities.iter().filter(|(_, name, _, parent)| {
             parent.is_none() && // Only root entities
             name.map(|n| n.to_lowercase())
@@ -105,6 +104,9 @@ pub fn show_hierarchy(
                 .contains(&lower_filter)
         }).collect()
     };
+
+    // Sort by entity ID only - simpler and faster:
+    filtered_entities.sort_unstable_by_key(|(entity, _, _, _)| *entity);
     // Use virtual scrolling for performance
     let text_style = TextStyle::Body;
     let row_height = ui.text_style_height(&text_style);
@@ -302,18 +304,18 @@ fn hierarchy_entity_context(
         changes.write(NewChange {
             change: Arc::new(AddedEntity { entity: new_id }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Delete").clicked() {
         commands.entity(entity).despawn();
         changes.write(NewChange {
             change: Arc::new(RemovedEntity { entity }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Clone").clicked() {
         clone_events.write(CloneEvent { id: entity });
-        ui.close_menu();
+        ui.close();
     }
     if !selected.is_empty() && !selected.contains(entity) && ui.button("Attach to").clicked() {
         for e in selected.iter() {

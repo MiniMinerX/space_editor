@@ -38,11 +38,12 @@ impl Plugin for BottomMenuPlugin {
 
         app.init_resource::<EditorLoader>();
         app.init_resource::<MenuToolbarState>();
-
+         
         app.add_systems(
             EguiPrimaryContextPass,
             bottom_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
@@ -50,9 +51,11 @@ impl Plugin for BottomMenuPlugin {
             EguiPrimaryContextPass,
             top_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
+        
         app.add_systems(EguiPrimaryContextPass, in_game_menu.in_set(EditorSet::Game).run_if(in_state(EditorState::Game)));
         app.add_event::<MenuLoadEvent>();
     }
@@ -76,15 +79,12 @@ impl Default for FrameSpeedMultiplier {
 fn in_game_menu(
     mut smoothed_dt: Local<f32>,
     mut frame_speed_mult: Local<FrameSpeedMultiplier>,
-    mut ctxs: EguiContexts,
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
     mut state: ResMut<NextState<EditorState>>,
     mut time: ResMut<Time<Virtual>>,
     sizing: Res<Sizing>,
 ) {
-    let ctx = match ctxs.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
+    let ctx = egui_ctx.get_mut();
 
     egui::TopBottomPanel::top("top_gameplay_panel")
         .min_height(&sizing.icon.to_size() + 8.)
@@ -159,7 +159,7 @@ pub struct MenuToolbarState {
 pub fn bottom_menu(
     mut commands: Commands,
     query: Query<HierarchyQueryIter, With<PrefabMarker>>,
-    mut ctxs: EguiContexts,
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
     _state: ResMut<NextState<EditorState>>,
     mut changes: EventWriter<NewChange>,
     mut state: ResMut<HierarchyTabState>,
@@ -168,16 +168,13 @@ pub fn bottom_menu(
     sizing: Res<Sizing>,
     q_pan_cam: Query<&PanOrbitCamera>,
 ) {
-    let ctx = match ctxs.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
+    let ctx = egui_ctx.get_mut();
 
     egui::TopBottomPanel::bottom("bottom_menu")
         .min_height(&sizing.icon.to_size().max(sizing.text) + 4.)
         .show(ctx, |ui| {
             ui.style_mut().spacing.menu_margin = Margin::symmetric(16, 8);
-            egui::menu::bar(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
                 let stl = ui.style_mut();
                 stl.spacing.button_padding = egui::Vec2::new(8., 2.);
 
@@ -254,7 +251,7 @@ pub fn bottom_menu(
                         .default_size(egui::Vec2::new(80., 80.))
                         .title_bar(false)
                         .show(ctx, |ui| {
-                            egui::menu::bar(ui, |ui| {
+                            egui::MenuBar::new().ui(ui, |ui| {
                                 ui.spacing();
                                 for (category_name, category_bundle) in ui_reg.bundles.iter() {
                                     ui.menu_button(category_name, |ui| {
@@ -306,7 +303,7 @@ pub fn bottom_menu(
 
 pub fn top_menu(
     mut commands: Commands,
-    mut ctxs: EguiContexts,
+    //mut ctxs: EguiContexts,
     _state: ResMut<NextState<EditorState>>,
     mut events: EventReader<MenuLoadEvent>,
     mut menu_state: ResMut<MenuToolbarState>,
@@ -315,16 +312,19 @@ pub fn top_menu(
     background_tasks: Res<BackgroundTaskStorage>,
     toasts: Res<ToastStorage>,
     sizing: Res<Sizing>,
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
 ) {
-    let ctx = match ctxs.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
+    //let ctx = match ctxs.ctx_mut() {
+    //    Ok(ctx) => ctx,
+    //    Err(_) => return,
+    //};
+    let ctx = egui_ctx.get_mut();
+
     egui::TopBottomPanel::top("top_menu_bar")
         .min_height(&sizing.icon.to_size() + 8.)
         .show(ctx, |ui| {
             ui.style_mut().spacing.menu_margin = Margin::symmetric(16, 8);
-            egui::menu::bar(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
                 let stl = ui.style_mut();
                 stl.spacing.button_padding = egui::Vec2::new(8., 4.);
 

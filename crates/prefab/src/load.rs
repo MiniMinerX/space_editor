@@ -108,7 +108,7 @@ fn load_prefab(
         let id = commands
             .spawn(DynamicSceneRoot(scene))
             .insert(SceneHook::new(move |_e, cmd| {
-                cmd.insert((PrefabAutoChild));
+                cmd.insert(PrefabAutoChild);
             }))
             .insert(PrefabAutoChild)
             .id();

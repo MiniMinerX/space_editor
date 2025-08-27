@@ -200,7 +200,7 @@ impl EditorTab for CameraViewTab {
                     clipped.height() as u32,
                 ))
             }) else {
-                world.send_event(ToastMessage::new(
+                world.write_event(ToastMessage::new(
                     "No camera image target found.",
                     toast::ToastKind::Error,
                 ));
@@ -213,7 +213,7 @@ impl EditorTab for CameraViewTab {
                 clipped.width(),
                 clipped.height()
             );
-            world.send_event(ToastMessage::new(&msg, toast::ToastKind::Success));
+            world.write_event(ToastMessage::new(&msg, toast::ToastKind::Success));
         } else if let Some(handle) = &self.target_image {
             if let Some(image) = world
                 .get_resource::<Assets<Image>>()
@@ -238,7 +238,7 @@ impl EditorTab for CameraViewTab {
                     clipped.height() as u32,
                 ))
             }) else {
-                world.send_event(ToastMessage::new(
+                world.write_event(ToastMessage::new(
                     "No camera image target found.",
                     toast::ToastKind::Error,
                 ));

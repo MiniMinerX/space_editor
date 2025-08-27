@@ -17,7 +17,6 @@ fn main() {
         }))
         .add_plugins(SpaceEditorPlugin)
         .add_systems(Startup, simple_editor_setup)
-
         //.add_plugins(TransformGizmoPlugin)
 
         /* 

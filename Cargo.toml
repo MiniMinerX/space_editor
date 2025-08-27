@@ -105,21 +105,8 @@ bevy-inspector-egui = {git = "https://github.com/MiniMinerX/bevy-inspector-egui/
 bevy_asset_loader = { git = "https://github.com/MiniMinerX/bevy_asset_loader", branch = "dev-0.17"}
 nonmax = "0.5.5"
 
-# not updated to bevy 0.17 yet
-
-
-# bevy_asset_loader = "0.23.0-rc.3"
-# bevy_panorbit_camera = { branch = "dev-0.16-reflect-cam-2", git = "https://github.com/MiniMinerX/bevy_panorbit_camera.git"}
-
-
-# below has not been updated to bevy 0.16
-
-#transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
-#transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
-
-
-#transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo.git"}
-#transform-gizmo-bevy = { git = "https://github.com/MiniMinerX/transform-gizmo.git"}
+transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.17"}
+transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.17"}
 
 
 

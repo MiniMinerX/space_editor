@@ -7,7 +7,7 @@ fn save_on_close_triggers_event() {
         .add_event::<PersistenceEvent>()
         .add_event::<WindowCloseRequested>()
         .add_systems(PreUpdate, persistence_save_on_close);
-    app.world_mut().send_event(WindowCloseRequested {
+    app.world_mut().write_event(WindowCloseRequested {
         window: Entity::PLACEHOLDER,
     });
     app.update();
@@ -28,7 +28,7 @@ fn save_on_close_false_doesnt_triggers_event() {
     .add_event::<PersistenceEvent>()
     .add_event::<WindowCloseRequested>()
     .add_systems(PreUpdate, persistence_save_on_close);
-    app.world_mut().send_event(WindowCloseRequested {
+    app.world_mut().write_event(WindowCloseRequested {
         window: Entity::PLACEHOLDER,
     });
     app.update();
@@ -76,7 +76,7 @@ fn persistence_starts_on_save() {
         .add_event::<PersistenceResourceBroadcastEvent>()
         .add_systems(PreUpdate, persistence_start);
 
-    app.world_mut().send_event(PersistenceEvent::Save);
+    app.world_mut().write_event(PersistenceEvent::Save);
     app.update();
 
     let event = app
@@ -105,7 +105,7 @@ fn persistence_starts_on_load_mem() {
     .add_event::<PersistenceResourceBroadcastEvent>()
     .add_systems(PreUpdate, persistence_start);
 
-    app.world_mut().send_event(PersistenceEvent::Load);
+    app.world_mut().write_event(PersistenceEvent::Load);
     app.update();
 
     let event = app
@@ -134,7 +134,7 @@ fn persistence_starts_on_load_file() {
     .add_event::<PersistenceResourceBroadcastEvent>()
     .add_systems(PreUpdate, persistence_start);
 
-    app.world_mut().send_event(PersistenceEvent::Load);
+    app.world_mut().write_event(PersistenceEvent::Load);
     app.update();
 
     let event = app
@@ -166,7 +166,7 @@ fn persistence_starts_on_file_not_found() {
     .add_event::<PersistenceResourceBroadcastEvent>()
     .add_systems(PreUpdate, persistence_start);
 
-    app.world_mut().send_event(PersistenceEvent::Load);
+    app.world_mut().write_event(PersistenceEvent::Load);
     app.update();
 
     let event = app
@@ -192,7 +192,7 @@ fn persistence_starts_on_load_from_memory() {
     .add_event::<PersistenceResourceBroadcastEvent>()
     .add_systems(PreUpdate, persistence_start);
 
-    app.world_mut().send_event(PersistenceEvent::Load);
+    app.world_mut().write_event(PersistenceEvent::Load);
     app.update();
 
     let event = app
@@ -295,7 +295,7 @@ fn persistence_system_unpack() {
     app.persistence_resource::<PersistenceSettings>();
     app.update();
     app.world_mut()
-        .send_event(PersistenceResourceBroadcastEvent::Unpack);
+        .write_event(PersistenceResourceBroadcastEvent::Unpack);
     app.update();
 
     let settings = app.world().resource::<PersistenceSettings>();
@@ -332,7 +332,7 @@ fn persistence_system_pack() {
     app.persistence_resource::<PersistenceSettings>();
     app.update();
     app.world_mut()
-        .send_event(PersistenceResourceBroadcastEvent::Pack);
+        .write_event(PersistenceResourceBroadcastEvent::Pack);
     app.update();
 
     let reg = app.world_mut().resource::<PersistenceRegistry>();

@@ -65,7 +65,7 @@ use space_editor_core::prelude::*;
 use bevy::{
     app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::PrimitiveTopology, window::PrimaryWindow
 };
-use bevy_egui::{egui, EguiContext, UiRenderOrder};
+use bevy_egui::{egui, EguiContext, EguiGlobalSettings, PrimaryEguiContext, UiRenderOrder};
 
 use space_editor_tabs::prelude::*;
 
@@ -84,11 +84,10 @@ use prelude::{
 use space_editor_core::toast::ToastUiPlugin;
 use space_prefab::prelude::*;
 use space_shared::{
-    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin},
-    toast::ToastMessage,
-    EditorCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache,
+    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin}, toast::ToastMessage, EditorCameraMarker, EditorGameViewTabCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
+use transform_gizmo_bevy::GizmoCamera;
 use ui_registration::BundleReg;
 
 use camera_plugin::*;
@@ -330,7 +329,12 @@ pub trait FlatPluginList {
 }
 
 /// This method prepare default lights and camera for editor UI. You can create own conditions for your editor and use this method how example
-pub fn simple_editor_setup(mut commands: Commands) {
+pub fn simple_editor_setup(
+    mut commands: Commands,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
+) {
+    egui_global_settings.auto_create_primary_context = false;
+
     commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
 
     // By default EditorState is Game. Set it to Editor to show editor ui
@@ -387,10 +391,23 @@ pub fn simple_editor_setup(mut commands: Commands) {
         Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         bevy_panorbit_camera::PanOrbitCamera::default(),
         EditorCameraMarker,
+        EditorGameViewTabCameraMarker,
         Name::from("Editor Camera"),
         //PickableBundle::default(),
+        GizmoCamera,
         MeshPickingCamera,
         all_render_layers(),
+    ));
+
+    commands.spawn((
+        Name::from("Editor Egui Ui Camera"),
+        Camera {
+            order: 101,
+            ..default()
+        },
+        Camera2d::default(),
+        PrimaryEguiContext,
+        EditorCameraMarker,
     ));
 }
 

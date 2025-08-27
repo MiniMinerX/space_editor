@@ -131,8 +131,8 @@ impl Plugin for EditorUiCore {
                 show_editor_ui
                     .before(update_pan_orbit)
                     // .before(ui_camera_block)
-                    // .after(menu_toolbars::top_menu)
-                    // .after(menu_toolbars::bottom_menu),
+                    .after(menu_toolbars::top_menu)
+                    .after(menu_toolbars::bottom_menu),
             )
                 .in_set(UiSystemSet),
         );
