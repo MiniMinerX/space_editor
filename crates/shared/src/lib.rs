@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
 pub mod ext {
     pub use bevy_inspector_egui;
@@ -8,7 +8,7 @@ pub mod ext {
 pub mod prelude {
     pub use crate::{
         EditorCameraMarker, EditorEvent, EditorPrefabPath, EditorSet, EditorState, PrefabMarker,
-        PrefabMemoryCache, SelectParent, EditorGameViewTabCameraMarker,
+        PrefabMemoryCache, SelectParent, EditorGameViewWorldCameraMarker, GameViewEguiContextPass, GameViewTabEguiCameraMarker,
     };
 }
 
@@ -29,7 +29,14 @@ pub struct EditorCameraMarker;
 
 #[derive(Component, Default, Clone, Reflect)]
 #[reflect(Component)]
-pub struct EditorGameViewTabCameraMarker;
+pub struct EditorGameViewWorldCameraMarker;
+
+#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GameViewEguiContextPass;
+
+#[derive(Component, Reflect, Default, Clone)]
+#[reflect(Component)]
+pub struct GameViewTabEguiCameraMarker;
 
 /// Editor states (`Editor`, `GamePrepare`, `Game`)
 #[derive(States, Default, Debug, Clone, Hash, Eq, PartialEq)]

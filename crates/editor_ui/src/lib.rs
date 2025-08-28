@@ -65,7 +65,7 @@ use space_editor_core::prelude::*;
 use bevy::{
     app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::PrimitiveTopology, window::PrimaryWindow
 };
-use bevy_egui::{egui, EguiContext, EguiGlobalSettings, PrimaryEguiContext, UiRenderOrder};
+use bevy_egui::{egui, EguiContext, EguiGlobalSettings, EguiMultipassSchedule, PrimaryEguiContext, UiRenderOrder};
 
 use space_editor_tabs::prelude::*;
 
@@ -84,7 +84,7 @@ use prelude::{
 use space_editor_core::toast::ToastUiPlugin;
 use space_prefab::prelude::*;
 use space_shared::{
-    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin}, toast::ToastMessage, EditorCameraMarker, EditorGameViewTabCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache
+    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin}, toast::ToastMessage, EditorCameraMarker, EditorGameViewWorldCameraMarker, EditorSet, EditorState, GameViewEguiContextPass, GameViewTabEguiCameraMarker, PrefabMarker, PrefabMemoryCache
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
 use transform_gizmo_bevy::GizmoCamera;
@@ -385,13 +385,13 @@ pub fn simple_editor_setup(
     // camera
     commands.spawn((
         Camera {
-            order: 100,
+            order: 101,
             ..default()
         },
         Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         bevy_panorbit_camera::PanOrbitCamera::default(),
         EditorCameraMarker,
-        EditorGameViewTabCameraMarker,
+        EditorGameViewWorldCameraMarker,
         Name::from("Editor Camera"),
         //PickableBundle::default(),
         GizmoCamera,
@@ -402,11 +402,23 @@ pub fn simple_editor_setup(
     commands.spawn((
         Name::from("Editor Egui Ui Camera"),
         Camera {
-            order: 101,
+            order: 100,
             ..default()
         },
         Camera2d::default(),
         PrimaryEguiContext,
+        EditorCameraMarker,
+    ));
+
+    commands.spawn((
+        Name::from("Game View Egui Ui Camera"),
+        Camera {
+            order: 102,
+            ..default()
+        },
+        Camera2d::default(),
+        EguiMultipassSchedule::new(GameViewEguiContextPass),
+        GameViewTabEguiCameraMarker,
         EditorCameraMarker,
     ));
 }

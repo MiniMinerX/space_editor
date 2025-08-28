@@ -2,15 +2,14 @@ pub mod game_view_tool;
 pub mod gizmo_tool;
 
 
-use bevy::{camera::Viewport, ecs::schedule::ScheduleLabel, prelude::*, window::PrimaryWindow};
+use bevy::{camera::Viewport, ecs::schedule::ScheduleLabel, log::tracing_subscriber::fmt::time, prelude::*, window::PrimaryWindow};
 use bevy_egui::{
-    egui::{self, debug_text::print, RichText, Widget},
-    EguiContextSettings, EguiPrimaryContextPass,
+    egui::{self, debug_text::print, RichText, Widget}, EguiContext, EguiContextSettings, EguiPrimaryContextPass
 };
 use game_view_tool::GameViewTool;
-use space_editor_ui::{colors::{SPECIAL_BG_COLOR, TEXT_COLOR, WARN_COLOR}, prelude::{EditorTabName, SetCameraViewport, ShowEditorUi}, ui_picking::NonUIAreas};
+use space_editor_ui::{colors::{SPECIAL_BG_COLOR, TEXT_COLOR, WARN_COLOR}, prelude::{EditorTabName, SetCameraViewport, ShowEditorUi}, sizing::Sizing, ui_picking::NonUIAreas};
 use space_undo::UndoRedo;
-use transform_gizmo_bevy::{Color32, GizmoMode};
+use transform_gizmo_bevy::{Color32, GizmoMode, GizmoOptions};
 
 use space_shared::*;
 
@@ -42,6 +41,12 @@ impl Plugin for MinimalGameViewPlugin {
             EguiPrimaryContextPass,
             set_camera_viewport.run_if(in_state(EditorState::Editor)),
         );
+
+        app.add_systems(
+            GameViewEguiContextPass,
+            game_view_tab_ui.run_if(in_state(EditorState::Editor))
+                .in_set(EditorSet::Editor),
+        );
         
         //app.add_systems(OnEnter(ShowEditorUi::Hide), reset_camera_viewport);
 
@@ -70,8 +75,7 @@ pub struct GameViewTab {
     pub smoothed_dt: f32,
 }
 
-#[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct GameViewEguiContextPass;
+
 
 impl Default for GameViewTab {
     fn default() -> Self {
@@ -85,66 +89,78 @@ impl Default for GameViewTab {
     }
 }
 
-impl EditorTab for GameViewTab {
-    fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
-        if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && !i.modifiers.shift)
-        {
-            world.write_event(UndoRedo::Undo);
+
+pub fn game_view_tab_ui(
+    mut game_view_tab: ResMut<GameViewTab>,
+    time: Res<Time>,
+    mut egui_ctx: Single<&mut EguiContext, With<GameViewTabEguiCameraMarker>>,
+    mut event_writer: EventWriter<UndoRedo>,
+    mut commands: Commands,
+    sizing: Res<Sizing>,
+    gizmo_opts: ResMut<GizmoOptions>,
+) {
+    let tab_rect = match game_view_tab.viewport_rect {
+        Some(rect) => rect,
+        None => return,
+    };
+
+    egui::Area::new("Game View Egui".into())
+    .constrain_to(tab_rect)
+    .show(egui_ctx.get_mut(), |ui| {
+        if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && !i.modifiers.shift){
+            event_writer.write(UndoRedo::Undo);
             info!("Undo command");
         }
         if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && i.modifiers.shift) {
-            world.write_event(UndoRedo::Redo);
+            event_writer.write(UndoRedo::Redo);
             info!("Redo command");
         }
-
-        ui.style_mut().visuals.panel_fill = egui::Color32::TRANSPARENT;
-        ui.style_mut().visuals.window_fill = egui::Color32::TRANSPARENT;
-        ui.style_mut().visuals.extreme_bg_color = egui::Color32::TRANSPARENT;
-        ui.style_mut().visuals.faint_bg_color = egui::Color32::TRANSPARENT;
 
         //println!("GameViewTab UI");
         ui.horizontal(|ui| {
             ui.style_mut().visuals.override_text_color = Some(TEXT_COLOR);
 
             //Tool processing
-            if self.tools.is_empty() {
+            if game_view_tab.tools.is_empty() {
                 //println!("No tools available in GameViewTab");
                 return;
             }
 
-            let selected_tool_name = if let Some(tool_id) = self.active_tool {
-                self.tools[tool_id].name()
+            let selected_tool_name = if let Some(tool_id) = game_view_tab.active_tool {
+                game_view_tab.tools[tool_id].name()
             } else {
                 //println!("Active tool index is out of bounds");
                 "None"
             };
 
-            if self.tools.len() > 1 {
+            if game_view_tab.tools.len() > 1 {
+                let mut selected_tool_index = game_view_tab.active_tool;
                 egui::ComboBox::new("tool", "")
                     .selected_text(selected_tool_name)
                     .show_ui(ui, |ui| {
-                        for (i, tool) in self.tools.iter().enumerate() {
+                        for (i, tool) in game_view_tab.tools.iter().enumerate() {
                             if ui
-                                .selectable_label(self.active_tool == Some(i), tool.name())
+                                .selectable_label(selected_tool_index == Some(i), tool.name())
                                 .clicked()
                             {
-                                self.active_tool = Some(i);
+                                selected_tool_index = Some(i);
                             }
                         }
                     });
+                game_view_tab.active_tool = selected_tool_index;
             }
 
-            if let Some(tool_id) = self.active_tool {
-                self.tools[tool_id].ui(ui, commands, world);
+            if let Some(tool_id) = game_view_tab.active_tool {
+                game_view_tab.tools[tool_id].ui(ui, &mut commands, sizing, gizmo_opts);
             }
 
             ui.spacing();
             //Draw FPS
-            if let Some(dt) = world.get_resource::<Time>() {
-                let dt = dt.delta_secs();
-                self.smoothed_dt = self.smoothed_dt.mul_add(0.98, dt * 0.02);
-                ui.colored_label(TEXT_COLOR, format!("FPS: {:.0}", 1.0 / self.smoothed_dt));
-            }
+            let dt = time.delta_secs();
+            game_view_tab.smoothed_dt = game_view_tab.smoothed_dt.mul_add(0.98, dt * 0.02);
+            ui.colored_label(TEXT_COLOR, format!("FPS: {:.0}", 1.0 / game_view_tab.smoothed_dt));
+
+
 
             #[cfg(debug_assertions)]
             {
@@ -155,6 +171,15 @@ impl EditorTab for GameViewTab {
             }
         });
 
+        
+    });
+
+    
+}
+
+
+impl EditorTab for GameViewTab {
+    fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {        
         self.viewport_rect = Some(ui.clip_rect());
         //println!("Viewport rect in ui: {:?}", self.viewport_rect);
     }
@@ -175,13 +200,20 @@ pub fn warn_if_debug_build(ui: &mut egui::Ui) {
 
 pub fn reset_camera_viewport(
     primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, With<EditorGameViewTabCameraMarker>>,
+    mut world_cameras: Query<
+        &mut Camera, ( 
+        With<EditorGameViewWorldCameraMarker>,
+        Without<GameViewTabEguiCameraMarker>,    
+    )>,
+    mut game_view_egui_cameras: Query<
+        &mut Camera, (
+        With<GameViewTabEguiCameraMarker>,
+        Without<EditorGameViewWorldCameraMarker>,
+    )>,
     mut game_view_tab: ResMut<GameViewTab>,
 ) {
     //println!("Resetting GameViewTab Camera viewport");
-    let Ok(mut cam) = cameras.single_mut() else {
-        return;
-    };
+    
 
     let Ok(_window) = primary_window.single() else {
         return;
@@ -190,7 +222,14 @@ pub fn reset_camera_viewport(
     game_view_tab.viewport_rect = None;
     //println!("Reset GameviewTab Rect: {:?}", game_view_tab.viewport_rect);
 
-    cam.viewport = None;
+    for mut cam in world_cameras.iter_mut() {
+        cam.viewport = None;
+    }
+
+    for mut cam in game_view_egui_cameras.iter_mut() {
+        cam.viewport = None;
+    }
+
 }
 
 pub fn has_window_changed(mut events: EventReader<bevy::window::WindowResized>) -> bool {
@@ -204,7 +243,16 @@ pub fn set_camera_viewport(
     mut local: Local<LastGameTabRect>,
     ui_state: Res<GameViewTab>,
     primary_window: Query<(Entity, &mut Window), With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, With<EditorGameViewTabCameraMarker>>,
+    mut world_cameras: Query<
+        &mut Camera, (
+        With<EditorGameViewWorldCameraMarker>,
+        Without<GameViewTabEguiCameraMarker>
+    )>,
+    mut game_view_egui_cam: Query<
+        &mut Camera, (
+        With<GameViewTabEguiCameraMarker>,
+        Without<EditorGameViewWorldCameraMarker>
+    )>,
 ) {
     //println!("Setting GameViewTab Camera viewport");
 
@@ -262,8 +310,16 @@ pub fn set_camera_viewport(
 
     //println!("Viewport pos: {:?}, size: {:?}", viewport_pos, viewport_size);
 
-    for mut cam in cameras.iter_mut() {
+    for mut cam in world_cameras.iter_mut() {
         
+        cam.viewport = Some(Viewport {
+            physical_position: UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32),
+            physical_size: UVec2::new(viewport_size.x as u32, viewport_size.y as u32),
+            depth: 0.0..1.0,
+        });
+    }
+
+    for mut cam in game_view_egui_cam.iter_mut() {
         cam.viewport = Some(Viewport {
             physical_position: UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32),
             physical_size: UVec2::new(viewport_size.x as u32, viewport_size.y as u32),
