@@ -38,7 +38,8 @@ impl PrefabBundle {
 pub struct LoadPlugin;
 
 /// Marks all child of prefab to correct delete them when prefab is deleted
-#[derive(Component)]
+#[derive(Component, Default, Reflect, Clone)]
+#[reflect(Component)]
 pub struct PrefabAutoChild;
 
 impl Plugin for LoadPlugin {
