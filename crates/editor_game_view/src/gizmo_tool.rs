@@ -170,9 +170,11 @@ impl GameViewTool for GizmoTool {
         &mut self, 
         ui: &mut egui::Ui, 
         commands: &mut Commands, 
-        sizing: Res<Sizing>,
-        mut gizmo_options: ResMut<GizmoOptions>,
+        world: &mut World,
     ) {
+        let sizing = world.resource::<Sizing>().clone();
+
+        let mut gizmo_options = world.resource_mut::<GizmoOptions>();
 
         ui.spacing();
         ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {

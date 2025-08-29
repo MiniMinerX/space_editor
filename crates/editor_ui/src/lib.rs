@@ -63,7 +63,7 @@ use camera_view::CameraViewTabPlugin;
 use space_editor_core::prelude::*;
 
 use bevy::{
-    app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::PrimitiveTopology, window::PrimaryWindow
+    app::PluginGroupBuilder, camera::{visibility::RenderLayers, SubCameraView}, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::PrimitiveTopology, window::PrimaryWindow
 };
 use bevy_egui::{egui, EguiContext, EguiGlobalSettings, EguiMultipassSchedule, PrimaryEguiContext, UiRenderOrder};
 
@@ -84,7 +84,7 @@ use prelude::{
 use space_editor_core::toast::ToastUiPlugin;
 use space_prefab::prelude::*;
 use space_shared::{
-    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin}, toast::ToastMessage, EditorCameraMarker, EditorGameViewWorldCameraMarker, EditorSet, EditorState, GameViewEguiContextPass, GameViewTabEguiCameraMarker, PrefabMarker, PrefabMemoryCache
+    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin}, toast::ToastMessage, EditorCameraMarker, EditorGameViewWorldCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
 use transform_gizmo_bevy::GizmoCamera;
@@ -382,44 +382,46 @@ pub fn simple_editor_setup(
     ));
     */
 
-    // camera
+    // Msaa must match both cameras
     commands.spawn((
+        Name::from("Editor Egui Ui Camera"),
         Camera {
             order: 101,
+            clear_color: ClearColorConfig::None,
+            msaa_writeback: true,
+            sub_camera_view: Some(SubCameraView {
+                full_size: UVec2::new(1, 1),
+                offset: Vec2::new(0., 0.),
+                // Needs to be this or screen goes black idk why
+                size: UVec2::new(0, 1),
+            }),
+            ..default()
+        },
+        // Cannot be a 2d cam or msaa causes issues
+        Camera3d::default(),
+        PrimaryEguiContext,
+        EditorCameraMarker,
+        // Set random render layer so egui 3d cam does minimal work
+        RenderLayers::from_layers(&[10000]),  
+        Msaa::Off,
+    ));
+
+    // camera
+    commands.spawn((
+        Camera3d::default(),
+        Camera {
+            order: 100,
             ..default()
         },
         Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         bevy_panorbit_camera::PanOrbitCamera::default(),
         EditorCameraMarker,
+        Name::from("Main Editor Camera"),
         EditorGameViewWorldCameraMarker,
-        Name::from("Editor Camera"),
-        //PickableBundle::default(),
         GizmoCamera,
         MeshPickingCamera,
         all_render_layers(),
-    ));
-
-    commands.spawn((
-        Name::from("Editor Egui Ui Camera"),
-        Camera {
-            order: 100,
-            ..default()
-        },
-        Camera2d::default(),
-        PrimaryEguiContext,
-        EditorCameraMarker,
-    ));
-
-    commands.spawn((
-        Name::from("Game View Egui Ui Camera"),
-        Camera {
-            order: 102,
-            ..default()
-        },
-        Camera2d::default(),
-        EguiMultipassSchedule::new(GameViewEguiContextPass),
-        GameViewTabEguiCameraMarker,
-        EditorCameraMarker,
+        Msaa::Off,
     ));
 }
 

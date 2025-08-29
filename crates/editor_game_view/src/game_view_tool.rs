@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::world, prelude::*};
 use space_editor_ui::sizing::Sizing;
 use transform_gizmo_bevy::GizmoOptions;
 
@@ -10,8 +10,7 @@ pub trait GameViewTool {
         &mut self, 
         ui: &mut bevy_egui::egui::Ui, 
         commands: &mut Commands, 
-        sizing: Res<Sizing>,
-        gizmo_opts: ResMut<GizmoOptions>,
+        world: &mut World,
     );
     fn name(&self) -> &str;
 }
