@@ -31,7 +31,7 @@ pub mod ext {
 pub mod prelude {
     pub use crate::component::*;
     pub use crate::editor_registry::*;
-    pub use crate::load::PrefabBundle;
+    pub use crate::load::{PrefabBundle, PrefabAutoChild};
     pub use crate::plugins::*;
     pub use crate::save::*;
     pub use crate::sub_scene::*;
