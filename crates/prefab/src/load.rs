@@ -38,13 +38,16 @@ impl PrefabBundle {
 pub struct LoadPlugin;
 
 /// Marks all child of prefab to correct delete them when prefab is deleted
-#[derive(Component)]
+#[derive(Component, Default, Reflect, Clone)]
+#[reflect(Component)]
 pub struct PrefabAutoChild;
 
 impl Plugin for LoadPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.editor_registry::<PrefabLoader>();
+        app.register_type::<PrefabAutoChild>();
+        app.editor_registry::<PrefabAutoChild>();
 
         app.add_systems(
             Update,

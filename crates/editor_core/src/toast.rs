@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::EguiContexts;
+use bevy_egui::{EguiContextPass, EguiContexts};
 use egui_dock::egui::{self, Align2};
 use space_shared::toast::ToastMessage;
 
@@ -20,7 +20,7 @@ impl Plugin for ToastBasePlugin {
         app.init_resource::<ToastStorage>()
             .add_event::<ToastMessage>()
             .add_event::<ClearToastMessage>()
-            .add_systems(Update, read_toast)
+            .add_systems(EguiContextPass, read_toast)
             .add_systems(PostUpdate, clear_toasts);
     }
 }

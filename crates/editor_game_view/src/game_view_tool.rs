@@ -1,10 +1,17 @@
-use bevy::prelude::*;
+use bevy::{ecs::world, prelude::*};
+use space_editor_ui::sizing::Sizing;
+use transform_gizmo_bevy::GizmoOptions;
 
 use crate::GameViewTab;
 
 
 pub trait GameViewTool {
-    fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World);
+    fn ui(
+        &mut self, 
+        ui: &mut bevy_egui::egui::Ui, 
+        commands: &mut Commands, 
+        world: &mut World,
+    );
     fn name(&self) -> &str;
 }
 

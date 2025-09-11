@@ -90,7 +90,7 @@ pub fn show_hierarchy(
     let lower_filter = state.entity_filter.to_lowercase();
 
     // Collect and filter entities once
-    let filtered_entities: Vec<_> = if state.show_editor_entities {
+    let mut filtered_entities: Vec<_> = if state.show_editor_entities {
         all_entities.iter().filter(|(_, name, _, parent)| {
             parent.is_none() && // Only root entities
             name.map(|n| n.to_lowercase())
@@ -105,6 +105,9 @@ pub fn show_hierarchy(
                 .contains(&lower_filter)
         }).collect()
     };
+
+    // Sort by entity ID only - simpler and faster:
+    filtered_entities.sort_unstable_by_key(|(entity, _, _, _)| *entity);
     // Use virtual scrolling for performance
     let text_style = TextStyle::Body;
     let row_height = ui.text_style_height(&text_style);

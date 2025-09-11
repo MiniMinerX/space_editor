@@ -13,17 +13,17 @@ pub fn plugin(app: &mut App) {
     //app.add_observer(on_pointer_click);
 
 
-    app.add_systems(
-        Update,
-        (delete_selected, reemit_pointer_click)// auto_add_markers)
-    );
+    //app.add_systems(
+    //    Update,
+    //    (delete_selected, reemit_pointer_click)// auto_add_markers)
+    //);
 
-    app.add_systems(
-        Update,
-        draw_mesh_intersections.run_if(in_state(EditorState::Editor))
-    );
+    //app.add_systems(
+    //    Update,
+    //    draw_mesh_intersections.run_if(in_state(EditorState::Editor))
+    //);
 
-    app.add_event::<AddMarkersEvent>();
+    //app.add_event::<AddMarkersEvent>();
 
     //app.add_observer(select_listener);
     //app.add_observer(recursive_add_markers);

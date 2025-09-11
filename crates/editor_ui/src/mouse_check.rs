@@ -8,9 +8,9 @@ pub struct MouseCheck;
 impl Plugin for MouseCheck {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
-        app.init_resource::<PointerContextCheck>()
-            .add_systems(Startup, initialize_mouse_context)
-            .add_systems(PreUpdate, update_mouse_context);
+        //app.init_resource::<PointerContextCheck>()
+        //    .add_systems(Startup, initialize_mouse_context)
+        //    .add_systems(PreUpdate, update_mouse_context);
     }
 }
 

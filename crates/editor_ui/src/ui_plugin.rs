@@ -103,6 +103,7 @@ impl Plugin for EditorUiCore {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         use bevy::app::MainScheduleOrder;
+        use bevy_egui::EguiContextPass;
 
         if !app.is_plugin_added::<MeshPickingPlugin>() {
             app.add_plugins(MeshPickingPlugin);
@@ -125,13 +126,13 @@ impl Plugin for EditorUiCore {
 
 
         app.add_systems(
-            Update,
+            EguiContextPass,
             (
                 show_editor_ui
                     .before(update_pan_orbit)
                     // .before(ui_camera_block)
-                    // .after(menu_toolbars::top_menu)
-                    // .after(menu_toolbars::bottom_menu),
+                    .after(menu_toolbars::top_menu)
+                    .after(menu_toolbars::bottom_menu),
             )
                 .in_set(UiSystemSet),
         );

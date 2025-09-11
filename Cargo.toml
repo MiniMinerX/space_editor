@@ -76,6 +76,7 @@ image = "0.25.6"
 
 # Egui crates
 bevy_egui = "0.34"
+
 egui_extras = { version = "0.31.1", features = ["all_loaders"] }
 egui_dock = "0.16.0"
 egui_file = "0.22.1"
@@ -102,11 +103,6 @@ bevy_mod_outline = {git = "https://github.com/komadori/bevy_mod_outline.git", br
 
 transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
 transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
-
-
-#transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo.git"}
-#transform-gizmo-bevy = { git = "https://github.com/MiniMinerX/transform-gizmo.git"}
-
 
 
 

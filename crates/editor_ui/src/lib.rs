@@ -94,6 +94,7 @@ use space_shared::{
     EditorCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache,
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
+use transform_gizmo_bevy::GizmoCamera;
 use ui_registration::BundleReg;
 
 use camera_plugin::*;
@@ -391,6 +392,7 @@ pub fn simple_editor_setup(mut commands: Commands) {
         Name::from("Editor Camera"),
         //PickableBundle::default(),
         MeshPickingCamera,
+        GizmoCamera,
         all_render_layers(),
     ));
 }
