@@ -31,6 +31,11 @@ fn main() {
         .editor_registry::<GizmoTarget>()
         .register_type::<PanOrbitCamera>()
 
+
+        .add_systems(Update, spin_entities)
+        .register_type::<SpinningMarker>()
+        .editor_registry::<SpinningMarker>()
+
         .run();
 }
 
@@ -46,6 +51,38 @@ fn disable_pan_orbit_on_gizmo(
                 //debug!("Disabling PanOrbitCamera for GizmoTarget: {:?}", gizmo_target);
                 return;
             }
+        }
+    }
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+struct SpinningMarker {
+    active: bool,
+    speed: f32,
+    axis: Vec3,
+}
+
+impl Default for SpinningMarker {
+    fn default() -> Self {
+        Self {
+            active: false,
+            speed: std::f32::consts::PI / 2.0, // 90 degrees per second
+            axis: Vec3::Y,
+        }
+    }
+}
+
+fn spin_entities(
+    mut spinning_entities: Query<(&SpinningMarker, &mut Transform)>,
+    time: Res<Time>,
+) {
+    for (marker, mut transform) in spinning_entities.iter_mut() {
+        if marker.active {
+            transform.rotate(Quat::from_axis_angle(
+                marker.axis,
+                marker.speed * time.delta_secs(),
+            ));
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_egui::{
     egui::{Align, Align2, Margin, Pos2, Stroke, Widget},
     *,
@@ -38,22 +38,25 @@ impl Plugin for BottomMenuPlugin {
 
         app.init_resource::<EditorLoader>();
         app.init_resource::<MenuToolbarState>();
-
+         
         app.add_systems(
-            Update,
+            EguiContextPass,
             bottom_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
         app.add_systems(
-            Update,
+            EguiContextPass,
             top_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
-        app.add_systems(Update, in_game_menu.in_set(EditorSet::Game));
+        
+        app.add_systems(EguiContextPass, in_game_menu.in_set(EditorSet::Game).run_if(in_state(EditorState::Game)));
         app.add_event::<MenuLoadEvent>();
     }
 }
@@ -74,16 +77,18 @@ impl Default for FrameSpeedMultiplier {
 }
 
 fn in_game_menu(
+    mut egui_ctx: EguiContexts,
     mut smoothed_dt: Local<f32>,
     mut frame_speed_mult: Local<FrameSpeedMultiplier>,
-    mut ctxs: EguiContexts,
     mut state: ResMut<NextState<EditorState>>,
     mut time: ResMut<Time<Virtual>>,
     sizing: Res<Sizing>,
 ) {
+    let ctx = egui_ctx.ctx_mut();
+
     egui::TopBottomPanel::top("top_gameplay_panel")
         .min_height(&sizing.icon.to_size() + 8.)
-        .show(ctxs.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             let frame_duration = time.delta();
             if !time.is_paused() {
                 *smoothed_dt = (*smoothed_dt).mul_add(0.98, time.delta_secs() * 0.02);
@@ -154,7 +159,7 @@ pub struct MenuToolbarState {
 pub fn bottom_menu(
     mut commands: Commands,
     query: Query<HierarchyQueryIter, With<PrefabMarker>>,
-    mut ctxs: EguiContexts,
+    mut egui_ctx: EguiContexts,
     _state: ResMut<NextState<EditorState>>,
     mut changes: EventWriter<NewChange>,
     mut state: ResMut<HierarchyTabState>,
@@ -163,7 +168,8 @@ pub fn bottom_menu(
     sizing: Res<Sizing>,
     q_pan_cam: Query<&PanOrbitCamera>,
 ) {
-    let ctx = ctxs.ctx_mut();
+    let ctx = egui_ctx.ctx_mut();
+
     egui::TopBottomPanel::bottom("bottom_menu")
         .min_height(&sizing.icon.to_size().max(sizing.text) + 4.)
         .show(ctx, |ui| {
@@ -307,7 +313,9 @@ pub fn top_menu(
     toasts: Res<ToastStorage>,
     sizing: Res<Sizing>,
 ) {
+
     let ctx = ctxs.ctx_mut();
+
     egui::TopBottomPanel::top("top_menu_bar")
         .min_height(&sizing.icon.to_size() + 8.)
         .show(ctx, |ui| {
