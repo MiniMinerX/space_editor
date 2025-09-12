@@ -34,9 +34,9 @@ impl Plugin for MinimalGameViewPlugin {
     fn build(&self, app: &mut App) {
         app.editor_tab_by_trait(GameViewTab::default());
 
-        app.add_systems(PostUpdate, 
-            set_non_ui_areas.before(set_camera_viewport).in_set(EditorSet::Editor)
-        );
+        //app.add_systems(PostUpdate, 
+        //    set_non_ui_areas.before(set_camera_viewport).in_set(EditorSet::Editor)
+        //);
 
         app.add_systems(
             OnEnter(EditorState::Editor),

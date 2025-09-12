@@ -11,14 +11,14 @@ pub struct UiPickingPlugin;
 impl Plugin for UiPickingPlugin {
     fn build(&self, app: &mut App) {
 
-        app.configure_sets(
-            Update,
-                UpdateNonUIAreas.in_set(EditorSet::Editor)
-        );
+        //app.configure_sets(
+        //    Update,
+        //        UpdateNonUIAreas.in_set(EditorSet::Editor)
+        //);
 
-        app.init_resource::<NonUIAreas>();
+        //app.init_resource::<NonUIAreas>();
 
-        app.add_systems(Update, clear_non_ui_areas.before(UpdateNonUIAreas).in_set(EditorSet::Editor));
+        //app.add_systems(Update, clear_non_ui_areas.before(UpdateNonUIAreas).in_set(EditorSet::Editor));
     }
 }
 

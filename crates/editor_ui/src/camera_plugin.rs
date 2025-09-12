@@ -30,18 +30,18 @@ impl Plugin for EditorDefaultCameraPlugin {
                 .before(PanOrbitCameraSystemSet)
                 .in_set(EditorSet::Editor),
         );
-        app.add_systems(
-            Update,
-            ui_camera_block
-                .after(reset_editor_camera_state)
-                .before(update_pan_orbit)
-                .in_set(EditorSet::Editor),
-        );
+        //app.add_systems(
+        //    Update,
+        //    ui_camera_block
+        //        .after(reset_editor_camera_state)
+        //        .before(update_pan_orbit)
+        //        .in_set(EditorSet::Editor),
+        //);
         app.add_systems(OnEnter(EditorState::GamePrepare), reset_play_camera_state);
         app.add_systems(OnEnter(EditorState::Editor), reset_editor_camera_state);
 
         
-        app.add_systems(Update, ui_camera_block.after(UpdateNonUIAreas).in_set(EditorSet::Editor));
+        //app.add_systems(Update, ui_camera_block.after(UpdateNonUIAreas).in_set(EditorSet::Editor));
     }
 }
 
