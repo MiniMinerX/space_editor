@@ -110,39 +110,37 @@ pub fn show_hierarchy(
     filtered_entities.sort_unstable_by_key(|(entity, _, _, _)| *entity);
     // Use virtual scrolling for performance
     let text_style = TextStyle::Body;
-    let row_height = ui.text_style_height(&text_style);
+    //let row_height = ui.text_style_height(&text_style);
 
     egui::ScrollArea::vertical()
-        .auto_shrink(false)
-        .show_rows(ui, row_height, filtered_entities.len(), |ui, row_range| {
-            for row in row_range {
-                if let Some((entity, _name, _children, _parent)) = filtered_entities.get(row) {
-                    if state.show_editor_entities {
-                        draw_entity::<()>(
-                            &mut commands,
-                            ui,
-                            &all_entities,
-                            *entity,
-                            &mut selected,
-                            &mut clone_events,
-                            &mut changes,
-                            &auto_children,
-                        );
-                    } else {
-                        draw_entity::<With<PrefabMarker>>(
-                            &mut commands,
-                            ui,
-                            &query,
-                            *entity,
-                            &mut selected,
-                            &mut clone_events,
-                            &mut changes,
-                            &auto_children,
-                        );
-                    }
-                }
+    .auto_shrink(false)
+    .show(ui, |ui| {
+        for (entity, _name, _children, _parent) in &filtered_entities {
+            if state.show_editor_entities {
+                draw_entity::<()>(
+                    &mut commands,
+                    ui,
+                    &all_entities,
+                    *entity,
+                    &mut selected,
+                    &mut clone_events,
+                    &mut changes,
+                    &auto_children,
+                );
+            } else {
+                draw_entity::<With<PrefabMarker>>(
+                    &mut commands,
+                    ui,
+                    &query,
+                    *entity,
+                    &mut selected,
+                    &mut clone_events,
+                    &mut changes,
+                    &auto_children,
+                );
             }
-        });
+        }
+    });
 }
 type DrawIter<'a> = (
     Entity,
