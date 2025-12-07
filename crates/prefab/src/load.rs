@@ -13,13 +13,13 @@ use super::save::ChildrenPrefab;
 ///
 #[derive(Default, Bundle)]
 pub struct PrefabBundle {
-    loader: PrefabLoader,
-    transform: Transform,
-    global_transform: GlobalTransform,
+    pub loader: PrefabLoader,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
 
-    visibility: Visibility,
-    computed_visibility: ViewVisibility,
-    inherited_visibility: InheritedVisibility,
+    pub visibility: Visibility,
+    pub computed_visibility: ViewVisibility,
+    pub inherited_visibility: InheritedVisibility,
 }
 
 impl PrefabBundle {
