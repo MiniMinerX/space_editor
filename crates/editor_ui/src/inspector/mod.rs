@@ -97,7 +97,7 @@ impl EditorTab for InspectorTab {
             for reg in app_registry.iter() {
                 if let Some(c_id) = world.components().get_id(reg.type_id()) {
                     let name = pretty_type_name::pretty_type_name_str(
-                        world.components().get_info(c_id).unwrap().name(),
+                        &world.components().get_info(c_id).unwrap().name(),
                     );
                     let priority = components_priority.get(&name).unwrap_or(&u8::MAX);
                     components_id.push((c_id, reg.type_id(), name, priority));
@@ -107,7 +107,7 @@ impl EditorTab for InspectorTab {
             for reg in editor_registry.iter() {
                 if let Some(c_id) = world.components().get_id(reg.type_id()) {
                     let name = pretty_type_name::pretty_type_name_str(
-                        world.components().get_info(c_id).unwrap().name(),
+                        &world.components().get_info(c_id).unwrap().name(),
                     );
                     let priority = components_priority.get(&name).unwrap_or(&u8::MAX);
                     components_id.push((c_id, reg.type_id(), name, priority));

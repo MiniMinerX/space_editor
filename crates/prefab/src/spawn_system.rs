@@ -1,4 +1,4 @@
-use bevy::{prelude::*, sprite::Anchor};
+use bevy::prelude::*;
 use bevy_scene_hook::SceneHook;
 #[cfg(feature = "editor")]
 use space_shared::toast::ToastMessage;
@@ -225,7 +225,7 @@ pub fn sync_spritesheet(
                         flip_x: false,
                         flip_y: false,
                         rect: None,             // Optional: Define a sub-region if needed
-                        anchor: Anchor::Center, // Default anchor or adjust
+                        //anchor: Anchor::Center, // Default anchor or adjust
                         image_mode: SpriteImageMode::default(), // Default or customized mode
                     })
                     .insert(Transform::default())
@@ -242,7 +242,7 @@ pub fn spawn_player_start(
     mut commands: Commands,
     query: Query<(Entity, &PlayerStart)>,
     asset_server: Res<AssetServer>,
-    #[cfg(feature = "editor")] mut toast: EventWriter<ToastMessage>,
+    #[cfg(feature = "editor")] mut toast: MessageWriter<ToastMessage>,
 ) {
     for (e, prefab) in query.iter() {
         let msg = format!("Spawning player start: {:?} with \"{}\"", e, &prefab.prefab);
@@ -421,6 +421,8 @@ mod tests {
     #[test]
     #[cfg(feature = "editor")]
     fn spawns_player_with_prefab() {
+
+
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -428,7 +430,7 @@ mod tests {
             ImagePlugin::default(),
             bevy::scene::ScenePlugin,
         ))
-        .add_event::<ToastMessage>();
+        .add_message::<ToastMessage>();
         app.add_systems(Startup, |mut commands: Commands| {
             commands.spawn(PlayerStart {
                 prefab: String::from("cube.glb#Scene0"),
@@ -437,7 +439,7 @@ mod tests {
         .add_systems(Update, spawn_player_start);
         app.update();
 
-        let events = app.world_mut().resource::<Events<ToastMessage>>();
+        let events = app.world_mut().resource::<Messages<ToastMessage>>();
         let mut man_events = events.get_cursor();
         let mut events = man_events.read(events);
         let event = events.next().unwrap();

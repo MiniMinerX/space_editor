@@ -2,7 +2,7 @@ pub mod game_view_tool;
 pub mod gizmo_tool;
 
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{camera::Viewport, prelude::*, window::PrimaryWindow};
 use bevy_egui::{
     egui::{self, RichText, Widget},
     EguiContextSettings,
@@ -84,11 +84,11 @@ impl EditorTab for GameViewTab {
     fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
         if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && !i.modifiers.shift)
         {
-            world.send_event(UndoRedo::Undo);
+            world.write_message(UndoRedo::Undo);
             info!("Undo command");
         }
         if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && i.modifiers.shift) {
-            world.send_event(UndoRedo::Redo);
+            world.write_message(UndoRedo::Redo);
             info!("Redo command");
         }
 
@@ -177,7 +177,7 @@ pub fn reset_camera_viewport(
     cam.viewport = None;
 }
 
-pub fn has_window_changed(mut events: EventReader<bevy::window::WindowResized>) -> bool {
+pub fn has_window_changed(mut events: MessageReader<bevy::window::WindowResized>) -> bool {
     events.read().next().is_some()
 }
 
@@ -247,7 +247,7 @@ pub fn set_camera_viewport(
         viewport_size.y = (window_height - viewport_pos.y - 1.0).max(1.0);
     }
 
-    cam.viewport = Some(bevy::render::camera::Viewport {
+    cam.viewport = Some(Viewport {
         physical_position: UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32),
         physical_size: UVec2::new(viewport_size.x as u32, viewport_size.y as u32),
         depth: 0.0..1.0,

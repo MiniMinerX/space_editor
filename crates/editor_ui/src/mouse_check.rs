@@ -30,7 +30,7 @@ impl Default for PointerContextCheck {
 }
 
 pub fn initialize_mouse_context(
-    mut toast: EventWriter<ToastMessage>,
+    mut toast: MessageWriter<ToastMessage>,
     mut pointer_ctx: ResMut<PointerContextCheck>,
     window_q: Query<Entity, With<PrimaryWindow>>,
 ) {
@@ -50,8 +50,9 @@ pub fn update_mouse_context(
     mut egui_ctxs: EguiContexts,
 ) {
     if let Some(window_id) = pointer_ctx.primary_window {
-        pointer_ctx.pointer_is_valid = !egui_ctxs
-            .ctx_for_entity_mut(window_id)
-            .wants_pointer_input();
+        
+        if let Ok(ctx) = egui_ctxs.ctx_for_entity_mut(window_id) {
+            pointer_ctx.pointer_is_valid = !ctx.wants_pointer_input();
+        }
     }
 }

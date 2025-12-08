@@ -107,7 +107,7 @@ fn delete_prepared_children(mut commands: Commands, query: Query<Entity, With<Ch
 pub fn serialize_scene(world: &mut World) {
     let Some(config) = world.get_resource::<SaveConfig>().cloned() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Save config resource not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -121,7 +121,7 @@ pub fn serialize_scene(world: &mut World) {
 
     if entities.is_empty() {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Saving empty scene",
             space_shared::toast::ToastKind::Warning,
         ));
@@ -130,7 +130,7 @@ pub fn serialize_scene(world: &mut World) {
 
     let Some(registry) = world.get_resource::<EditorRegistry>().cloned() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Editor Registry not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -162,7 +162,7 @@ pub fn serialize_scene(world: &mut World) {
 
     let Some(app_registry) = world.get_resource::<AppTypeRegistry>() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "App Registry not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -208,7 +208,7 @@ pub fn serialize_scene(world: &mut World) {
         #[cfg(not(tarpaulin_include))]
         let err = format!("failed to serialize prefab: {:?}", e);
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             &err,
             space_shared::toast::ToastKind::Error,
         ));
@@ -373,7 +373,7 @@ mod tests {
             EditorRegistryPlugin {},
             SaveResourcesPrefabPlugin {},
         ))
-        .add_event::<space_shared::toast::ToastMessage>()
+        .add_message::<space_shared::toast::ToastMessage>()
         .insert_resource(save_config)
         .init_resource::<PrefabMemoryCache>();
 
@@ -382,7 +382,7 @@ mod tests {
         serialize_scene(&mut app.world_mut());
         let events = app
             .world_mut()
-            .resource::<Events<space_shared::toast::ToastMessage>>();
+            .resource::<Messages<space_shared::toast::ToastMessage>>();
 
         let mut iter = events.get_cursor();
         let iter = iter.read(events);

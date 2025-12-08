@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    window::{VideoMode, WindowMode, WindowResolution},
+    window::{WindowMode, WindowResolution},
 };
 use game_lib::GamePlugin;
 use space_prefab::prelude::{PrefabBundle, PrefabPlugin};
@@ -12,7 +12,7 @@ fn main() {
             resizable: true,
             focused: true,
             title: "Your Game".into(),
-            resolution: WindowResolution::new(1600., 900.),
+            resolution: WindowResolution::new(1600, 900),
             visible: true,
             mode: WindowMode::Fullscreen(
                 MonitorSelection::Current,

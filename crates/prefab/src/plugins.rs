@@ -1,5 +1,4 @@
 use bevy::{
-    core_pipeline::core_3d::{Camera3dDepthTextureUsage, ScreenSpaceTransmissionQuality},
     prelude::*,
     render::camera::CameraRenderGraph,
 };
@@ -45,6 +44,8 @@ pub struct BasePrefabPlugin;
 impl Plugin for BasePrefabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
+        use bevy::camera::{Camera3dDepthTextureUsage, ScreenSpaceTransmissionQuality};
+
         app.init_state::<EditorState>();
         app.init_resource::<PendingMeshLoads>();
         app.init_resource::<PendingMaterialLoads>();
@@ -215,7 +216,7 @@ impl Plugin for BasePrefabPlugin {
 
         app.editor_registry::<PlaymodeLight>();
 
-        app.add_event::<ToastMessage>();
+        app.add_message::<ToastMessage>();
 
         app.add_systems(OnEnter(EditorState::Game), spawn_player_start);
 
@@ -460,11 +461,11 @@ fn on_asset_material_removed(
 
 // Modified observer - just tracks the entity, doesn't load immediately
 fn on_asset_mesh_added_tracker(
-    trigger: Trigger<OnAdd, AssetMesh>,
+    trigger: On<Add, AssetMesh>,
     mut pending_loads: ResMut<PendingMeshLoads>,
     query: Query<&AssetMesh>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     if query.get(entity).is_ok() {
         info!("Queuing mesh load for entity {:?}", entity);
         pending_loads.entities.insert(entity);
@@ -515,10 +516,10 @@ fn batched_sync_asset_mesh(
 
 // Keep the removal observer as-is since it's immediate
 fn on_asset_mesh_removed(
-    trigger: Trigger<OnRemove, AssetMesh>,
+    trigger: On<Remove, AssetMesh>,
     mut commands: Commands,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     if let Ok(mut cmd) = commands.get_entity(entity) {
         cmd.remove::<Mesh3d>();
         info!("Removed mesh handle for entity {:?}", entity);
@@ -527,11 +528,11 @@ fn on_asset_mesh_removed(
 
 // Similar pattern for materials
 fn on_asset_material_added_tracker(
-    trigger: Trigger<OnAdd, AssetMaterial>,
+    trigger: On<Add, AssetMaterial>,
     mut pending_loads: ResMut<PendingMaterialLoads>,
     query: Query<&AssetMaterial>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     if query.get(entity).is_ok() {
         info!("Queuing material load for entity {:?}", entity);
         pending_loads.entities.insert(entity);
@@ -579,10 +580,10 @@ fn batched_sync_asset_material(
 }
 
 fn on_asset_material_removed(
-    trigger: Trigger<OnRemove, AssetMaterial>,
+    trigger: On<Remove, AssetMaterial>,
     mut commands: Commands,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     if let Ok(mut cmd) = commands.get_entity(entity) {
         cmd.remove::<MeshMaterial3d<StandardMaterial>>();
         info!("Removed material handle for entity {:?}", entity);
@@ -591,19 +592,19 @@ fn on_asset_material_removed(
 
 // Optional: Add a system to handle changes to existing AssetMesh components
 fn on_asset_mesh_changed_tracker(
-    trigger: Trigger<OnReplace, AssetMesh>,
+    trigger: On<Replace, AssetMesh>,
     mut pending_loads: ResMut<PendingMeshLoads>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     info!("Queuing mesh update for entity {:?}", entity);
     pending_loads.entities.insert(entity);
 }
 
 fn on_asset_material_changed_tracker(
-    trigger: Trigger<OnReplace, AssetMaterial>,
+    trigger: On<Replace, AssetMaterial>,
     mut pending_loads: ResMut<PendingMaterialLoads>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.entity;
     info!("Queuing material update for entity {:?}", entity);
     pending_loads.entities.insert(entity);
 }

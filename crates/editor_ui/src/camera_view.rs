@@ -1,17 +1,13 @@
 use bevy::{
-    core_pipeline::tonemapping::DebandDither,
-    prelude::*,
-    render::{
-        camera::{CameraRenderGraph, RenderTarget, TemporalJitter},
+    camera::{RenderTarget, Viewport}, core_pipeline::tonemapping::DebandDither, prelude::*, render::{
+        camera::{CameraRenderGraph, TemporalJitter},
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
-    },
-    window::PrimaryWindow,
+    }, window::PrimaryWindow
 };
 use bevy_egui::{
-    egui::{self, RichText},
-    EguiContexts,
+    EguiContexts, EguiTextureHandle, egui::{self, RichText}
 };
 
 use space_prefab::component::PlaymodeCamera;
@@ -87,7 +83,7 @@ impl EditorTab for CameraViewTab {
                             Camera {
                                 is_active: true,
                                 order: 2,
-                                clear_color: bevy::render::camera::ClearColorConfig::Default,
+                                clear_color: ClearColorConfig::Default,
                                 ..default()
                             },
                             RenderLayers::layer(0),
@@ -108,7 +104,7 @@ impl EditorTab for CameraViewTab {
                             Camera {
                                 is_active: false,
                                 order: 2,
-                                clear_color: bevy::render::camera::ClearColorConfig::Default,
+                                clear_color: ClearColorConfig::Default,
                                 ..default()
                             },
                             RenderLayers::layer(0),
@@ -203,7 +199,7 @@ impl EditorTab for CameraViewTab {
                     clipped.height() as u32,
                 ))
             }) else {
-                world.send_event(ToastMessage::new(
+                world.write_message(ToastMessage::new(
                     "No camera image target found.",
                     toast::ToastKind::Error,
                 ));
@@ -216,7 +212,7 @@ impl EditorTab for CameraViewTab {
                 clipped.width(),
                 clipped.height()
             );
-            world.send_event(ToastMessage::new(&msg, toast::ToastKind::Success));
+            world.write_message(ToastMessage::new(&msg, toast::ToastKind::Success));
         } else if let Some(handle) = &self.target_image {
             if let Some(image) = world
                 .get_resource::<Assets<Image>>()
@@ -241,7 +237,7 @@ impl EditorTab for CameraViewTab {
                     clipped.height() as u32,
                 ))
             }) else {
-                world.send_event(ToastMessage::new(
+                world.write_message(ToastMessage::new(
                     "No camera image target found.",
                     toast::ToastKind::Error,
                 ));
@@ -315,12 +311,12 @@ fn set_camera_viewport(
 
     if ui_state.egui_tex_id.is_none() {
         ui_state.target_image = Some(target_image.clone());
-        ui_state.egui_tex_id = Some((ctxs.add_image(target_image.clone()), target_image.clone()));
+        ui_state.egui_tex_id = Some((ctxs.add_image(EguiTextureHandle::Strong(target_image.clone())), target_image.clone()));
     }
 
     if let (Some((_tx_id, handle)), true) = (&ui_state.egui_tex_id, ui_state.need_reinit_egui_tex) {
         ctxs.remove_image(handle);
-        ui_state.egui_tex_id = Some((ctxs.add_image(target_image.clone()), target_image));
+        ui_state.egui_tex_id = Some((ctxs.add_image(EguiTextureHandle::Strong(target_image.clone())), target_image));
         ui_state.need_reinit_egui_tex = false;
     }
 
@@ -390,7 +386,7 @@ fn set_camera_viewport(
         Vec2::new(preferred_width, preferred_height) / 2.0,
     );
 
-    let new_viewport = Some(bevy::render::camera::Viewport {
+    let new_viewport = Some(Viewport {
         physical_position: UVec2::new(view_image_rect.min.x as u32, view_image_rect.min.y as u32),
         physical_size: UVec2::new(
             view_image_rect.size().x as u32,

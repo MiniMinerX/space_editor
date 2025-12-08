@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::ext::*;
-use bevy::{math::Affine2, sprite::AlphaMode2d};
+use bevy::{math::Affine2, sprite_render::AlphaMode2d};
 use bevy_inspector_egui::{inspector_options::ReflectInspectorOptions, InspectorOptions};
 
 /// Prefab component that store parameters and asset paths for creating [`StandardMaterial`]

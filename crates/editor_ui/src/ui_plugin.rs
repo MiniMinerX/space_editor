@@ -36,7 +36,6 @@ pub struct EditorGizmo;
 impl FlatPluginList for EditorUiPlugin {
     #[cfg(not(tarpaulin_include))]
     fn add_plugins_to_group(&self, group: PluginGroupBuilder) -> PluginGroupBuilder {
-        use bevy_egui::EguiPlugin;
 
         let mut res = group
             .add(SelectedPlugin)
@@ -103,7 +102,7 @@ impl Plugin for EditorUiCore {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         use bevy::app::MainScheduleOrder;
-        use bevy_egui::EguiContextPass;
+        use bevy_egui::EguiPrimaryContextPass;
 
         if !app.is_plugin_added::<MeshPickingPlugin>() {
             app.add_plugins(MeshPickingPlugin);
@@ -126,7 +125,7 @@ impl Plugin for EditorUiCore {
 
 
         app.add_systems(
-            EguiContextPass,
+            EguiPrimaryContextPass,
             (
                 show_editor_ui
                     .before(update_pan_orbit)

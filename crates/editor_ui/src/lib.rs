@@ -63,14 +63,9 @@ use camera_view::CameraViewTabPlugin;
 use space_editor_core::prelude::*;
 
 use bevy::{
-    app::PluginGroupBuilder,
-    input::common_conditions::input_toggle_active,
-    pbr::CascadeShadowConfigBuilder,
-    prelude::*,
-    render::{render_resource::PrimitiveTopology, view::RenderLayers},
-    window::PrimaryWindow,
+    app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, window::PrimaryWindow
 };
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{EguiContext, UiRenderOrder, egui};
 
 use space_editor_tabs::prelude::*;
 
@@ -122,7 +117,6 @@ pub mod prelude {
         hierarchy::*,
         inspector::*,
         menu_toolbars::*,
-        meshless_visualizer::*,
         settings::*,
         ui_registration::*,
     };
@@ -179,7 +173,9 @@ impl PluginGroup for EditorPluginGroup {
             .add(EditorDefaultBundlesPlugin)
             .add(EditorDefaultCameraPlugin)
             .add(bevy_egui::EguiPlugin {
-                enable_multipass_for_primary_context: false,
+                ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+                bindless_mode_array_size: std::num::NonZero::new(16),
+                enable_multipass_for_primary_context: true,
             })
             //.add(EventListenerPlugin::<selection::SelectEvent>::default())
             .add(DefaultInspectorConfigPlugin);
@@ -285,8 +281,8 @@ impl Plugin for EditorGizmoPlugin {
 }
 
 fn save_prefab_before_play(
-    mut editor_events: EventWriter<space_shared::EditorEvent>,
-    mut toast: EventWriter<ToastMessage>,
+    mut editor_events: MessageWriter<space_shared::EditorEvent>,
+    mut toast: MessageWriter<ToastMessage>,
 ) {
     toast.write(ToastMessage::new(
         "Preparing prefab to save for playmode",
@@ -335,7 +331,7 @@ pub trait FlatPluginList {
 
 /// This method prepare default lights and camera for editor UI. You can create own conditions for your editor and use this method how example
 pub fn simple_editor_setup(mut commands: Commands) {
-    commands.insert_resource(bevy::pbr::DirectionalLightShadowMap { size: 4096 });
+    commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
 
     // By default EditorState is Game. Set it to Editor to show editor ui
     commands.set_state(EditorState::Editor);
@@ -382,19 +378,23 @@ pub fn simple_editor_setup(mut commands: Commands) {
 
     // camera
     commands.spawn((
+        Camera3d::default(),
         Camera {
             order: 100,
             ..default()
         },
         Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        bevy_panorbit_camera::PanOrbitCamera::default(),
+        PanOrbitCamera::default(),
         EditorCameraMarker,
-        Name::from("Editor Camera"),
-        //PickableBundle::default(),
-        MeshPickingCamera,
+        Name::from("Main Editor Camera"),
+        //EditorGameViewWorldCameraMarker,
         GizmoCamera,
+        MeshPickingCamera,
         all_render_layers(),
+        Msaa::Off,
     ));
+
+
 }
 
 pub fn game_mode_changed(

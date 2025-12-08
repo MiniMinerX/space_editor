@@ -23,8 +23,8 @@ impl Plugin for UndoPlugin {
         app.init_resource::<UndoIgnoreStorage>();
         app.init_resource::<ChangeChainSettings>();
 
-        app.add_event::<NewChange>();
-        app.add_event::<UndoRedo>();
+        app.add_message::<NewChange>();
+        app.add_message::<UndoRedo>();
 
         /*
         app.configure_sets(
@@ -89,7 +89,7 @@ pub enum UndoSet {
     Global,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct UndoRedoApplied<T> {
     pub entity: Entity,
     _phantom: std::marker::PhantomData<T>,
@@ -110,7 +110,7 @@ fn update_change_chain(
     mut buffer: Local<Vec<NewChange>>, //Buffer will use for chain reaction changes and collecting them together
     settings: Res<ChangeChainSettings>,
     mut change_chain: ResMut<ChangeChain>,
-    mut events: EventReader<NewChange>,
+    mut events: MessageReader<NewChange>,
 ) {
     //collect buffer
     let mut events_on_current_frame = 0;
@@ -168,7 +168,7 @@ fn clear_one_frame_ignore(
 }
 
 fn undo_redo_logic(world: &mut World) {
-    world.resource_scope::<Events<UndoRedo>, _>(|world, mut events| {
+    world.resource_scope::<Messages<UndoRedo>, _>(|world, mut events| {
         world.resource_scope::<ChangeChain, _>(|world, mut change_chain| {
             {
                 let mut reader = events.get_cursor();
@@ -245,13 +245,13 @@ pub enum ChangeResult {
     SuccessWithRemap(Vec<(Entity, Entity)>),
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub enum UndoRedo {
     Undo,
     Redo,
 }
 
-#[derive(Event, Clone)]
+#[derive(Message, Clone)]
 pub struct NewChange {
     pub change: Arc<dyn EditorChange + Send + Sync>,
 }
@@ -383,7 +383,7 @@ impl<T: Component + Reflect + FromReflect> EditorChange for ReflectedComponentCh
                 .ok_or(format!("Failed to revert reflected entity `{:?}`", e))?,
             OneFrameUndoIgnore::default(),
         ));
-        world.send_event(UndoRedoApplied::<T> {
+        world.write_message(UndoRedoApplied::<T> {
             entity: e,
             _phantom: std::marker::PhantomData,
         });
@@ -474,7 +474,7 @@ impl<T: Component + Reflect + FromReflect> EditorChange for ReflectedAddedCompon
             .resource_mut::<UndoIgnoreStorage>()
             .storage
             .insert(dst, OneFrameUndoIgnore::default());
-        world.send_event(UndoRedoApplied::<T> {
+        world.write_message(UndoRedoApplied::<T> {
             entity: dst,
             _phantom: std::marker::PhantomData,
         });
@@ -577,7 +577,7 @@ impl<T: Component + Reflect + FromReflect> EditorChange for ReflectedRemovedComp
             ))?,
             OneFrameUndoIgnore::default(),
         ));
-        world.send_event(UndoRedoApplied::<T> {
+        world.write_message(UndoRedoApplied::<T> {
             entity: dst,
             _phantom: std::marker::PhantomData,
         });
@@ -694,7 +694,7 @@ impl AppAutoUndo for App {
 
         self.world_mut()
             .insert_resource(AutoUndoStorage::<T>::default());
-        self.add_event::<UndoRedoApplied<T>>();
+        self.add_message::<UndoRedoApplied<T>>();
 
         self.add_systems(
             PostUpdate,
@@ -720,7 +720,7 @@ impl AppAutoUndo for App {
 
         self.world_mut()
             .insert_resource(AutoUndoStorage::<T>::default());
-        self.add_event::<UndoRedoApplied<T>>();
+        self.add_message::<UndoRedoApplied<T>>();
 
         self.add_systems(
             PostUpdate,
@@ -832,7 +832,7 @@ fn apply_for_every_typed_field<D: Reflect>(
 fn auto_remap_undo_redo<T: Component<Mutability = Mutable> + Reflect>(
     change_chain: Res<ChangeChain>,
     mut query: Query<&mut T>,
-    mut undoredo_applied: EventReader<UndoRedoApplied<T>>,
+    mut undoredo_applied: MessageReader<UndoRedoApplied<T>>,
 ) {
     for event in undoredo_applied.read() {
         println!("remapping {:?}", event.entity);
@@ -879,7 +879,7 @@ fn auto_undo_add_init<T: Component + Clone>(
     mut storage: ResMut<AutoUndoStorage<T>>,
     query: Query<(Entity, &T), (With<UndoMarker>, Added<T>, Without<OneFrameUndoIgnore>)>,
     just_maker_added_query: Query<(Entity, &T), (Added<UndoMarker>, Without<OneFrameUndoIgnore>)>,
-    mut new_changes: EventWriter<NewChange>,
+    mut new_changes: MessageWriter<NewChange>,
 ) {
     for (e, data) in query.iter() {
         storage.storage.insert(e, data.clone());
@@ -902,7 +902,7 @@ fn auto_undo_reflected_add_init<T: Component + Reflect + FromReflect>(
     mut storage: ResMut<AutoUndoStorage<T>>,
     query: Query<(Entity, &T), (With<UndoMarker>, Added<T>, Without<OneFrameUndoIgnore>)>,
     just_maker_added_query: Query<(Entity, &T), (Added<UndoMarker>, Without<OneFrameUndoIgnore>)>,
-    mut new_changes: EventWriter<NewChange>,
+    mut new_changes: MessageWriter<NewChange>,
 ) {
     for (e, data) in query.iter() {
         storage
@@ -935,7 +935,7 @@ fn auto_undo_remove_detect<T: Component + Clone>(
     _commands: Commands,
     mut storage: ResMut<AutoUndoStorage<T>>,
     mut removed_query: RemovedComponents<T>,
-    mut new_changes: EventWriter<NewChange>,
+    mut new_changes: MessageWriter<NewChange>,
     ignore_storage: ResMut<UndoIgnoreStorage>,
 ) {
     for e in removed_query.read() {
@@ -956,7 +956,7 @@ fn auto_undo_reflected_remove_detect<T: Component + Reflect + FromReflect>(
     _commands: Commands,
     mut storage: ResMut<AutoUndoStorage<T>>,
     mut removed_query: RemovedComponents<T>,
-    mut new_changes: EventWriter<NewChange>,
+    mut new_changes: MessageWriter<NewChange>,
     ignore_storage: ResMut<UndoIgnoreStorage>,
 ) {
     for e in removed_query.read() {
@@ -988,7 +988,7 @@ fn auto_undo_system<T: Component<Mutability = Mutable> + Clone>(
     mut commands: Commands,
     mut storage: ResMut<AutoUndoStorage<T>>,
     mut query: Query<(Entity, &mut T), With<ChangedMarker<T>>>,
-    mut new_change: EventWriter<NewChange>,
+    mut new_change: MessageWriter<NewChange>,
 ) {
     for (e, data) in query.iter_mut() {
         if !data.is_changed() {
@@ -1014,7 +1014,7 @@ fn auto_undo_reflected_system<T: Component<Mutability = Mutable> + Reflect + Fro
     mut commands: Commands,
     mut storage: ResMut<AutoUndoStorage<T>>,
     mut query: Query<(Entity, &mut T, &mut ChangedMarker<T>)>,
-    mut new_change: EventWriter<NewChange>,
+    mut new_change: MessageWriter<NewChange>,
 ) {
     for (e, data, mut marker) in query.iter_mut() {
         if !data.is_changed() {

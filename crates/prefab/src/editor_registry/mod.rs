@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use bevy::{
-    ecs::{component::Mutable, system::{EntityCommand, EntityCommands}}, platform::collections::{HashMap, HashSet}, prelude::*, reflect::{GetTypeRegistration, TypeRegistration, TypeRegistryArc, Typed}
+    ecs::{component::Mutable, system::{EntityCommand, EntityCommands}}, platform::collections::{HashMap, HashSet}, prelude::*, reflect::{GetTypeRegistration, TypeRegistryArc, Typed}
 };
 
-use space_shared::*;
 
-use space_undo::AppAutoUndo;
 use std::any::TypeId;
 
 use crate::{component::AutoStruct, save::SaveState, PrefabSet};
@@ -107,7 +105,7 @@ pub struct SendEvent {
 }
 
 impl SendEvent {
-    pub fn new<T: Default + Event + Resource + Clone>() -> Self {
+    pub fn new<T: Default + Message + Resource + Clone>() -> Self {
         let path = std::any::type_name::<T>().to_string();
         let name = path.split("::").last().unwrap_or("UnnamedEvent").into();
         let type_id = TypeId::of::<T>();
@@ -117,7 +115,7 @@ impl SendEvent {
             type_id,
             func: Arc::new(move |world| {
                 if let Some(event) = world.get_resource::<T>().cloned() {
-                    world.send_event(event);
+                    world.write_message(event);
                 }
             }),
         }
@@ -224,7 +222,7 @@ impl EditorRegistry {
 
     /// Register new event, which will be shown in editor UI and can be sent
     pub fn event_register<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: Message + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) {
@@ -283,7 +281,7 @@ pub trait EditorRegistryExt {
 
     /// register new event in editor UI
     fn editor_registry_event<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: Message + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) -> &mut Self;
@@ -382,7 +380,7 @@ impl EditorRegistryExt for App {
     }
 
     fn editor_registry_event<
-        T: Event + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
+        T: Message + Default + Resource + Reflect + Send + Clone + 'static + GetTypeRegistration,
     >(
         &mut self,
     ) -> &mut Self {
@@ -525,7 +523,7 @@ mod tests {
 
     #[test]
     fn send_events() {
-        #[derive(Default, Event, Resource, Clone, Debug)]
+        #[derive(Default, Message, Resource, Clone, Debug)]
         struct AnEvent {
             val: usize,
         }
@@ -533,7 +531,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .init_resource::<AnEvent>()
-            .add_event::<AnEvent>();
+            .add_message::<AnEvent>();
 
         let send_event = SendEvent::new::<AnEvent>();
         assert_eq!(send_event.name(), "AnEvent");
@@ -546,13 +544,13 @@ mod tests {
         send_event.send(&mut app.world_mut());
         app.update();
 
-        let events = app.world_mut().resource::<Events<AnEvent>>();
+        let events = app.world_mut().resource::<Messages<AnEvent>>();
         let mut events_reader = events.get_cursor();
         let an_event = events_reader.read(events).next().unwrap();
 
         // Check the event has been sent
         assert_eq!(an_event.val, 0);
-        let mut events = app.world_mut().resource_mut::<Events<AnEvent>>();
+        let mut events = app.world_mut().resource_mut::<Messages<AnEvent>>();
         events.clear();
 
         // Change send event value
@@ -562,7 +560,7 @@ mod tests {
         send_event.send(app.world_mut());
         app.update();
 
-        let events = app.world_mut().resource::<Events<AnEvent>>();
+        let events = app.world_mut().resource::<Messages<AnEvent>>();
         let mut events_reader = events.get_cursor();
         let an_event = events_reader.read(events).next().unwrap();
 
@@ -599,7 +597,7 @@ mod tests {
 
     #[test]
     fn event_editor_registration() {
-        #[derive(Default, Event, Resource, Clone, Debug, Reflect)]
+        #[derive(Default, Message, Resource, Clone, Debug, Reflect)]
         struct AnEvent {
             val: usize,
         }
@@ -607,7 +605,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, EditorRegistryPlugin))
             .editor_registry_event::<AnEvent>()
-            .add_event::<AnEvent>();
+            .add_message::<AnEvent>();
         app.update();
 
         let registry = app.world_mut().resource::<EditorRegistry>();

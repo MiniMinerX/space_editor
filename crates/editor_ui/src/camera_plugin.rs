@@ -1,12 +1,11 @@
 use crate::*;
-use bevy::prelude::*;
+use bevy::{camera::Viewport, prelude::*};
 
 pub struct EditorDefaultCameraPlugin;
 
 impl Plugin for EditorDefaultCameraPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
-        use crate::ui_picking::UpdateNonUIAreas;
 
         app.configure_sets(
             Update,
@@ -91,7 +90,7 @@ pub fn change_camera_in_play(
     mut editor_only_cameras: Query<&mut Camera, (With<EditorCameraMarker>, Without<PlaymodeCamera>)>,
     mut play_cameras: Query<&mut Camera, With<PlaymodeCamera>>,
     primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut toast: EventWriter<ToastMessage>,
+    mut toast: MessageWriter<ToastMessage>,
 ) {
     if !play_cameras.is_empty() {
         editor_only_cameras.iter_mut().for_each(|mut cam| {
@@ -117,7 +116,7 @@ pub fn change_camera_in_play(
             ));
             return;
         };
-        cam.viewport = Some(bevy::render::camera::Viewport {
+        cam.viewport = Some(Viewport {
             physical_position: UVec2::new(0, 0),
             physical_size: UVec2::new(window.width() as u32, window.height() as u32),
             depth: 0.0..1.0,

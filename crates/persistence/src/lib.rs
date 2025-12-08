@@ -29,8 +29,8 @@ impl Plugin for PersistencePlugin {
         app.init_resource::<PersistenceRegistry>()
             .init_resource::<PersistenceSettings>();
 
-        app.add_event::<PersistenceEvent>();
-        app.add_event::<PersistenceResourceBroadcastEvent>();
+        app.add_message::<PersistenceEvent>();
+        app.add_message::<PersistenceResourceBroadcastEvent>();
 
         app.configure_sets(
             Update,
@@ -56,9 +56,9 @@ impl Plugin for PersistencePlugin {
 }
 
 fn persistence_save_on_close(
-    mut events: EventWriter<PersistenceEvent>,
+    mut events: MessageWriter<PersistenceEvent>,
     settings: Res<PersistenceSettings>,
-    mut close_events: EventReader<WindowCloseRequested>,
+    mut close_events: MessageReader<WindowCloseRequested>,
 ) {
     if settings.save_on_close && close_events.read().next().is_some() {
         events.write(PersistenceEvent::Save);
@@ -66,7 +66,7 @@ fn persistence_save_on_close(
 }
 
 fn persistence_startup_load(
-    mut events: EventWriter<PersistenceEvent>,
+    mut events: MessageWriter<PersistenceEvent>,
     settings: Res<PersistenceSettings>,
 ) {
     if settings.load_on_startup {
@@ -75,8 +75,8 @@ fn persistence_startup_load(
 }
 
 fn persistence_start(
-    mut events: EventReader<PersistenceEvent>,
-    mut broadcast: EventWriter<PersistenceResourceBroadcastEvent>,
+    mut events: MessageReader<PersistenceEvent>,
+    mut broadcast: MessageWriter<PersistenceResourceBroadcastEvent>,
     mut persistence: ResMut<PersistenceRegistry>,
 ) {
     for event in events.read() {
@@ -226,18 +226,18 @@ pub struct PersistenceRegistry {
     mode: PersistenceMode,
 }
 
-#[derive(Event, Default)]
+#[derive(Message, Default)]
 pub struct PersistenceLoaded<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub enum PersistenceEvent {
     Save,
     Load,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 enum PersistenceResourceBroadcastEvent {
     Unpack,
     Pack,
@@ -293,7 +293,7 @@ impl AppPersistenceExt for App {
             .target_count += 1;
 
         self.register_type::<T>();
-        self.add_event::<PersistenceLoaded<T>>();
+        self.add_message::<PersistenceLoaded<T>>();
 
         self.init_resource::<PersistenceLoadPipeline<T>>();
 
@@ -316,7 +316,7 @@ impl AppPersistenceExt for App {
             .target_count += 1;
 
         self.register_type::<T>();
-        self.add_event::<PersistenceLoaded<T>>();
+        self.add_message::<PersistenceLoaded<T>>();
 
         self.insert_resource(PersistenceLoadPipeline {
             load_fn: load_function,
@@ -334,11 +334,11 @@ impl AppPersistenceExt for App {
 fn persistence_resource_system<
     T: Default + Reflect + FromReflect + Resource + GetTypeRegistration,
 >(
-    mut events: EventReader<PersistenceResourceBroadcastEvent>,
+    mut events: MessageReader<PersistenceResourceBroadcastEvent>,
     mut persistence: ResMut<PersistenceRegistry>,
     mut resource: ResMut<T>,
     registry: Res<AppTypeRegistry>,
-    mut persistence_loaded: EventWriter<PersistenceLoaded<T>>,
+    mut persistence_loaded: MessageWriter<PersistenceLoaded<T>>,
     pipeline: ResMut<PersistenceLoadPipeline<T>>,
 ) {
     for event in events.read() {

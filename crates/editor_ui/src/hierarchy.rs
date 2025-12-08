@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use bevy::{ecs::query::QueryFilter, platform::collections::HashMap, prelude::*};
 use bevy_egui::{
-    egui::{collapsing_header::CollapsingState, TextEdit, TextStyle},
+    egui::{collapsing_header::CollapsingState, TextEdit},
     *,
 };
 use space_editor_core::prelude::*;
@@ -17,7 +17,7 @@ use space_editor_tabs::prelude::*;
 use crate::{colors::WARN_COLOR, editor_tab_name::EditorTabName};
 
 /// Event to clone entity with clone all registered components
-#[derive(Event)]
+#[derive(Message)]
 pub struct CloneEvent {
     pub id: Entity,
 }
@@ -40,7 +40,7 @@ impl Plugin for SpaceHierarchyPlugin {
                 .in_set(EditorSet::Editor)
                 .before(UndoSet::PerType),
         );
-        app.add_event::<CloneEvent>();
+        app.add_message::<CloneEvent>();
     }
 }
 
@@ -64,9 +64,9 @@ pub fn show_hierarchy(
     query: Query<HierarchyQueryIter, With<PrefabMarker>>,
     all_entities: Query<HierarchyQueryIter>,
     mut selected: Query<Entity, With<Selected>>,
-    mut clone_events: EventWriter<CloneEvent>,
+    mut clone_events: MessageWriter<CloneEvent>,
     mut ui: NonSendMut<EditorUiRef>,
-    mut changes: EventWriter<NewChange>,
+    mut changes: MessageWriter<NewChange>,
     mut state: ResMut<HierarchyTabState>,
     auto_children: Query<(), With<SceneAutoChild>>,
 ) {
@@ -109,7 +109,7 @@ pub fn show_hierarchy(
     // Sort by entity ID only - simpler and faster:
     filtered_entities.sort_unstable_by_key(|(entity, _, _, _)| *entity);
     // Use virtual scrolling for performance
-    let text_style = TextStyle::Body;
+    //let text_style = TextStyle::Body;
     //let row_height = ui.text_style_height(&text_style);
 
     egui::ScrollArea::vertical()
@@ -155,8 +155,8 @@ fn draw_entity<F: QueryFilter>(
     query: &Query<DrawIter, F>,
     entity: Entity,
     selected: &mut Query<Entity, With<Selected>>,
-    clone_events: &mut EventWriter<CloneEvent>,
-    changes: &mut EventWriter<NewChange>,
+    clone_events: &mut MessageWriter<CloneEvent>,
+    changes: &mut MessageWriter<NewChange>,
     auto_children: &Query<(), With<SceneAutoChild>>,
 ) {
     let Ok((_, name, children, parent)) = query.get(entity) else {
@@ -292,8 +292,8 @@ fn hierarchy_entity_context(
     ui: &mut egui::Ui,
     commands: &mut Commands<'_, '_>,
     entity: Entity,
-    changes: &mut EventWriter<'_, NewChange>,
-    clone_events: &mut EventWriter<'_, CloneEvent>,
+    changes: &mut MessageWriter<'_, NewChange>,
+    clone_events: &mut MessageWriter<'_, CloneEvent>,
     selected: &mut Query<'_, '_, Entity, With<Selected>>,
     parent: Option<&ChildOf>,
 ) {
@@ -303,18 +303,18 @@ fn hierarchy_entity_context(
         changes.write(NewChange {
             change: Arc::new(AddedEntity { entity: new_id }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Delete").clicked() {
         commands.entity(entity).despawn();
         changes.write(NewChange {
             change: Arc::new(RemovedEntity { entity }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Clone").clicked() {
         clone_events.write(CloneEvent { id: entity });
-        ui.close_menu();
+        ui.close();
     }
     if !selected.is_empty() && !selected.contains(entity) && ui.button("Attach to").clicked() {
         for e in selected.iter() {
@@ -332,7 +332,7 @@ pub struct ClonedEntity;
 fn clone_enitites(
     mut commands: Commands,
     query: Query<EntityRef>,
-    mut events: EventReader<CloneEvent>,
+    mut events: MessageReader<CloneEvent>,
     editor_registry: Res<EditorRegistry>,
 ) {
     for event in events.read() {
@@ -344,7 +344,7 @@ fn clone_enitites(
             if let Ok(entity) = query.get(src_id) {
                 if entity.contains::<PrefabMarker>() {
                     let mut cmds = commands.entity(dst_id).insert(ClonedEntity);
-                    commands.entity(src_id).clone_with(dst_id, |_| {});
+                    commands.entity(src_id).clone_with_opt_in(dst_id, |_| {});
 
                     // editor_registry.clone_entity_flat(&mut cmds, &entity);
 
@@ -371,7 +371,7 @@ fn clone_enitites(
 fn detect_cloned_entities(
     mut commands: Commands,
     query: Query<Entity, Added<ClonedEntity>>,
-    mut changes: EventWriter<NewChange>,
+    mut changes: MessageWriter<NewChange>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).remove::<ClonedEntity>();

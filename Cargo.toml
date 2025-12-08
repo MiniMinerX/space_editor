@@ -42,7 +42,7 @@ repository = "https://github.com/rewin123/space_editor"
 homepage = "https://github.com/rewin123/space_editor"
 
 [workspace.dependencies]
-bevy = { version = "0.16.0", features = [
+bevy = { version = "0.17.3", features = [
     "bevy_gltf",
     "bevy_log",
     "bevy_window",
@@ -75,35 +75,31 @@ convert_case = "0.8.0"
 image = "0.25.6"
 
 # Egui crates
-bevy_egui = "0.34"
+bevy_egui = "0.38"
 
-egui_extras = { version = "0.31.1", features = ["all_loaders"] }
-egui_dock = "0.16.0"
-egui_file = "0.22.1"
-egui-toast = "0.17.0"
+egui_extras = { version = "0.33.2", features = ["all_loaders"] }
+egui_dock = "0.18.0"
+egui_file = "0.24.0"
+egui-toast = "0.19.1"
 
-bevy-scene-hook = {git = "https://github.com/MiniMinerX/bevy-scene-hook.git", branch= "dev-0.16"}
-bevy_debug_grid = { git = "https://github.com/MiniMinerX/bevy_debug_grid.git", branch = "dev-0.16"}
-bevy-inspector-egui = {version = "0.31.0", features = [
+bevy-scene-hook = {git = "https://github.com/MiniMinerX/bevy-scene-hook.git", branch= "dev-0.17"}
+bevy_debug_grid = "0.8.0"
+bevy-inspector-egui = {version = "0.35.0", features = [
     "bevy_pbr",
     "highlight_changes",
 ]}
-#bevy-inspector-egui = { branch = "space_edit", git = "https://github.com/MiniMinerX/bevy-inspector-egui.git", features = [
-#    "bevy_pbr",
-#    "highlight_changes",
-#] }
-bevy_mod_billboard = { branch = "dev-0.16", git = "https://github.com/MiniMinerX/bevy_mod_billboard.git"}
-bevy_asset_loader = "0.23.0-rc.3"
-bevy_panorbit_camera = "0.26"
-# bevy_panorbit_camera = { branch = "dev-0.16-reflect-cam-2", git = "https://github.com/MiniMinerX/bevy_panorbit_camera.git"}
+bevy_mod_billboard = { branch = "dev-0.17", git = "https://github.com/MiniMinerX/bevy_mod_billboard.git"}
+bevy_asset_loader = { git = "https://github.com/MiniMinerX/bevy_asset_loader", branch = "dev-0.17"}
+bevy_panorbit_camera = "0.33"
 
-bevy_mod_outline = {git = "https://github.com/komadori/bevy_mod_outline.git", branch = "bevy-0.16"}
+bevy_mod_outline = {git = "https://github.com/komadori/bevy_mod_outline.git", branch = "bevy-0.17"}
 
 # below has not been updated to bevy 0.16
 
-transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
-transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.16-3"}
-
+transform-gizmo-bevy = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.17"}
+transform-gizmo-egui = {git = "https://github.com/MiniMinerX/transform-gizmo", branch = "dev-0.17"}
+#transform-gizmo-bevy = "0.8.0"
+#transform-gizmo-egui = "0.8.0"
 
 
 # Community Modules

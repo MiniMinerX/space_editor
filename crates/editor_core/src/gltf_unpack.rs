@@ -7,14 +7,14 @@ use space_shared::PrefabMarker;
 
 use super::{BackgroundTask, BackgroundTaskStorage};
 
-#[derive(Event)]
+#[derive(Message)]
 /// Event to handle GLTF path
 pub struct EditorUnpackGltf {
     pub path: String,
     pub parent: Option<Entity>,
 }
 
-#[derive(Event, Clone)]
+#[derive(Message, Clone)]
 struct GltfLoaded {
     handle: Handle<Gltf>,
     parent: Option<Entity>,
@@ -24,8 +24,8 @@ pub struct UnpackGltfPlugin;
 
 impl Plugin for UnpackGltfPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<EditorUnpackGltf>();
-        app.add_event::<GltfLoaded>();
+        app.add_message::<EditorUnpackGltf>();
+        app.add_message::<GltfLoaded>();
         app.add_systems(PreUpdate, (unpack_gltf_event, queue_push, unpack_gltf));
 
         app.init_resource::<GltfSceneQueue>();
@@ -42,7 +42,7 @@ struct GltfHolder(Handle<Gltf>);
 struct GltfSceneQueue(Vec<(Handle<Gltf>, Option<Entity>)>);
 
 fn unpack_gltf_event(
-    mut events: EventReader<EditorUnpackGltf>,
+    mut events: MessageReader<EditorUnpackGltf>,
     assets: Res<AssetServer>,
     mut queue: ResMut<GltfSceneQueue>,
     mut background_tasks: ResMut<BackgroundTaskStorage>,
@@ -61,7 +61,7 @@ fn unpack_gltf_event(
 // separated from unpack_gltf for reduce arguments count and ordered unpack
 fn queue_push(
     mut queue: ResMut<GltfSceneQueue>,
-    mut events: EventWriter<GltfLoaded>,
+    mut events: MessageWriter<GltfLoaded>,
     assets: Res<AssetServer>,
 ) {
     if let Some((handle, parent)) = queue.0.first().cloned() {
@@ -82,7 +82,7 @@ struct UnpackContext<'a> {
 
 fn unpack_gltf(world: &mut World) {
     let loaded_scenes = {
-        let Some(mut events) = world.get_resource_mut::<Events<GltfLoaded>>() else {
+        let Some(mut events) = world.get_resource_mut::<Messages<GltfLoaded>>() else {
             return;
         };
         let mut reader = events.get_cursor();
@@ -105,7 +105,7 @@ fn unpack_gltf(world: &mut World) {
             .get_resource::<Assets<Gltf>>()
             .and_then(|gltfs| gltfs.get(&gltf_loaded.handle))
         else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_message(space_shared::toast::ToastMessage::new(
                 "Gltf asset not found or empty",
                 space_shared::toast::ToastKind::Error,
             ));
@@ -115,21 +115,21 @@ fn unpack_gltf(world: &mut World) {
         let mut commands = Commands::new(&mut command_queue, world);
 
         let Some(gltf_nodes) = world.get_resource::<Assets<GltfNode>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_message(space_shared::toast::ToastMessage::new(
                 "Gltf Node asset not found",
                 space_shared::toast::ToastKind::Error,
             ));
             continue;
         };
         let Some(gltf_meshs) = world.get_resource::<Assets<GltfMesh>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_message(space_shared::toast::ToastMessage::new(
                 "Gltf Mesh asset not found",
                 space_shared::toast::ToastKind::Error,
             ));
             continue;
         };
         let Some(scenes) = world.get_resource::<Assets<Scene>>() else {
-            world.send_event(space_shared::toast::ToastMessage::new(
+            world.write_message(space_shared::toast::ToastMessage::new(
                 "Scene asset not found",
                 space_shared::toast::ToastKind::Error,
             ));

@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashSet, prelude::*};
+use bevy::prelude::*;
 use bevy_scene_hook::SceneHook;
 use space_shared::PrefabMarker;
 
@@ -111,7 +111,7 @@ fn load_prefab(
         let id = commands
             .spawn(DynamicSceneRoot(scene))
             .insert(SceneHook::new(move |_e, cmd| {
-                cmd.insert((PrefabAutoChild));
+                cmd.insert(PrefabAutoChild);
             }))
             .insert(PrefabAutoChild)
             .id();
