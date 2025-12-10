@@ -8,10 +8,10 @@ pub mod ext {
 pub mod prelude {
     pub use crate::{
         EditorCameraMarker, EditorEvent, EditorPrefabPath, EditorSet, EditorState, PrefabMarker,
-        PrefabMemoryCache, SelectParent,
+        PrefabMemoryCache, SelectParent, EditorGameViewWorldCameraMarker,
     };
 }
-
+ 
 pub mod asset_fs;
 pub(crate) mod gizmos;
 pub mod toast;
