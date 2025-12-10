@@ -22,7 +22,7 @@ impl ChildrenPrefab {
 }
 
 impl MapEntities for ChildrenPrefab {
-    #[cfg_attr(tarpaulin, ignore)]
+    #[cfg(not(tarpaulin_include))]
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.0 = self
             .0
@@ -45,7 +45,7 @@ impl Plugin for SaveResourcesPrefabPlugin {
 pub struct SavePrefabPlugin;
 
 impl Plugin for SavePrefabPlugin {
-    #[cfg_attr(tarpaulin, ignore)]
+    #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.add_plugins(SaveResourcesPrefabPlugin {});
 
@@ -71,7 +71,7 @@ pub struct SaveConfig {
 
 /// State system using to enable slow logic of saving
 #[cfg(not(tarpaulin_include))]
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[derive(States, Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub enum SaveState {
     Save,
     #[default]
@@ -97,7 +97,15 @@ fn delete_prepared_children(mut commands: Commands, query: Query<Entity, With<Ch
 
 /// Convert world scene to prefab
 pub fn serialize_scene(world: &mut World) {
-    let config = world.resource::<SaveConfig>().clone();
+    let Some(config) = world.get_resource::<SaveConfig>().cloned() else {
+        #[cfg(feature = "editor")]
+        world.send_event(space_shared::toast::ToastMessage::new(
+            "Save config resource not initialized",
+            space_shared::toast::ToastKind::Error,
+        ));
+        error!("Save config resource not initialized");
+        return;
+    };
 
     let mut prefab_query =
         world.query_filtered::<Entity, (With<PrefabMarker>, Without<SceneAutoChild>)>();
@@ -112,13 +120,22 @@ pub fn serialize_scene(world: &mut World) {
         warn!("Saving empty scene");
     }
 
-    let registry = world.resource::<EditorRegistry>().clone();
+    let Some(registry) = world.get_resource::<EditorRegistry>().cloned() else {
+        #[cfg(feature = "editor")]
+        world.send_event(space_shared::toast::ToastMessage::new(
+            "Editor Registry not initialized",
+            space_shared::toast::ToastKind::Error,
+        ));
+        error!("Editor Registry not initialized");
+        return;
+    };
     let allow_types: Vec<TypeId> = registry
         .registry
         .read()
         .iter()
-        .map(|a| a.type_id())
+        .map(|a| a.type_info().type_id())
         .collect();
+
     let mut builder = DynamicSceneBuilder::from_world(world);
     builder = builder
         .allow_all()
@@ -128,7 +145,17 @@ pub fn serialize_scene(world: &mut World) {
         .extract_entities(entities.iter().copied());
     let scene = builder.build();
 
-    let res = scene.serialize_ron(world.resource::<AppTypeRegistry>());
+    let Some(app_registry) = world.get_resource::<AppTypeRegistry>() else {
+        #[cfg(feature = "editor")]
+        world.send_event(space_shared::toast::ToastMessage::new(
+            "App Registry not initialized",
+            space_shared::toast::ToastKind::Error,
+        ));
+        error!("App Registry not initialized");
+        return;
+    };
+
+    let res = scene.serialize(&app_registry.read());
 
     if let Ok(str) = res {
         // Write the scene RON data to file
@@ -152,14 +179,18 @@ pub fn serialize_scene(world: &mut World) {
                         .detach();
                 }
                 EditorPrefabPath::MemoryCache => {
-                    let handle = world.resource_mut::<Assets<DynamicScene>>().add(scene);
-                    world.resource_mut::<PrefabMemoryCache>().scene = Some(handle);
+                    let handle = world
+                        .get_resource_mut::<Assets<DynamicScene>>()
+                        .map(|mut assets| assets.add(scene));
+                    if let Some(mut cache) = world.get_resource_mut::<PrefabMemoryCache>() {
+                        cache.scene = handle;
+                    }
                 }
             }
         }
     } else if let Err(e) = res {
         // Any ideas on how to test this error case?
-        #[cfg_attr(tarpaulin, ignore)]
+        #[cfg(not(tarpaulin_include))]
         let err = format!("failed to serialize prefab: {:?}", e);
         #[cfg(feature = "editor")]
         world.send_event(space_shared::toast::ToastMessage::new(
@@ -169,9 +200,9 @@ pub fn serialize_scene(world: &mut World) {
         error!(err);
     }
 
-    world
-        .resource_mut::<NextState<SaveState>>()
-        .set(SaveState::Idle);
+    if let Some(mut state) = world.get_resource_mut::<NextState<SaveState>>() {
+        state.set(SaveState::Idle)
+    }
 }
 
 #[cfg(test)]
@@ -207,7 +238,7 @@ mod tests {
 
         app.update();
 
-        serialize_scene(&mut app.world);
+        serialize_scene(&mut app.world_mut());
 
         // Delay for 0.2 second for IOTaskPool to finish
         std::thread::sleep(std::time::Duration::from_secs_f32(0.2));
@@ -229,8 +260,9 @@ mod tests {
             path: Some(EditorPrefabPath::MemoryCache),
         };
         let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_state::<SaveState>();
         app.add_plugins((
-            MinimalPlugins,
             AssetPlugin::default(),
             ImagePlugin::default(),
             bevy::scene::ScenePlugin,
@@ -250,9 +282,9 @@ mod tests {
 
         app.update();
 
-        serialize_scene(&mut app.world);
+        serialize_scene(&mut app.world_mut());
         assert!(app
-            .world
+            .world_mut()
             .resource_mut::<PrefabMemoryCache>()
             .scene
             .is_some());
@@ -270,8 +302,10 @@ mod tests {
         .add_systems(Update, prepare_children);
         app.update();
 
-        let mut query = app.world.query_filtered::<Entity, With<ChildrenPrefab>>();
-        assert_eq!(query.iter(&app.world).count(), 1);
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<ChildrenPrefab>>();
+        assert_eq!(query.iter(&app.world_mut()).count(), 1);
     }
 
     #[test]
@@ -291,8 +325,10 @@ mod tests {
         .add_systems(Update, delete_prepared_children);
         app.update();
 
-        let mut query = app.world.query_filtered::<Entity, With<ChildrenPrefab>>();
-        assert_eq!(query.iter(&app.world).count(), 0);
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<ChildrenPrefab>>();
+        assert_eq!(query.iter(&app.world_mut()).count(), 0);
     }
 
     #[test]
@@ -309,7 +345,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "editor")]
     fn attempts_to_serialize_empty_scene() {
         let save_config = SaveConfig {
             path: Some(EditorPrefabPath::MemoryCache),
@@ -329,9 +364,9 @@ mod tests {
 
         app.update();
 
-        serialize_scene(&mut app.world);
+        serialize_scene(&mut app.world_mut());
         let events = app
-            .world
+            .world_mut()
             .resource::<Events<space_shared::toast::ToastMessage>>();
 
         let mut iter = events.get_reader();
@@ -356,7 +391,9 @@ mod tests {
         .add_systems(Update, prepare_children);
         app.update();
 
-        let mut query = app.world.query_filtered::<Entity, With<ChildrenPrefab>>();
-        assert_eq!(query.iter(&app.world).count(), 1);
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<ChildrenPrefab>>();
+        assert_eq!(query.iter(&app.world_mut()).count(), 1);
     }
 }
