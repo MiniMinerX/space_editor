@@ -13,13 +13,13 @@ use super::save::ChildrenPrefab;
 ///
 #[derive(Default, Bundle)]
 pub struct PrefabBundle {
-    loader: PrefabLoader,
-    transform: Transform,
-    global_transform: GlobalTransform,
+    pub loader: PrefabLoader,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
 
-    visibility: Visibility,
-    computed_visibility: ViewVisibility,
-    inherited_visibility: InheritedVisibility,
+    pub visibility: Visibility,
+    pub computed_visibility: ViewVisibility,
+    pub inherited_visibility: InheritedVisibility,
 }
 
 impl PrefabBundle {
@@ -38,25 +38,28 @@ impl PrefabBundle {
 pub struct LoadPlugin;
 
 /// Marks all child of prefab to correct delete them when prefab is deleted
-#[derive(Component)]
+#[derive(Component, Default, Reflect, Clone)]
+#[reflect(Component)]
 pub struct PrefabAutoChild;
 
 impl Plugin for LoadPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         app.editor_registry::<PrefabLoader>();
+        app.register_type::<PrefabAutoChild>();
+        app.editor_registry::<PrefabAutoChild>();
 
         app.add_systems(
             Update,
-            load_prefab.after(bevy_scene_hook::Systems::SceneHookRunner),
+            (
+                conflict_resolve,
+                load_prefab,
+                ApplyDeferred,
+                auto_children,
+            )
+                .chain()
+                .after(bevy_scene_hook::Systems::SceneHookRunner),
         );
-        app.add_systems(
-            Update,
-            conflict_resolve
-                .after(bevy_scene_hook::Systems::SceneHookRunner)
-                .before(load_prefab),
-        );
-        app.add_systems(Update, auto_children);
     }
 }
 
@@ -90,30 +93,32 @@ fn load_prefab(
                 .insert((Transform::default(), GlobalTransform::default()));
         }
         if vis.is_none() {
-            commands.entity(e).insert(VisibilityBundle::default());
+            commands.entity(e).insert(Visibility::default());
         }
 
         //remove old scene
         if let Some(children) = children {
             for child in children {
                 if auto_children.contains(*child) {
-                    commands.entity(*child).despawn_recursive();
+                    commands.entity(*child).despawn();
                 }
             }
-            commands.entity(e).clear_children();
+            commands.entity(e).remove::<Children>();
         }
-
+  
         let scene: Handle<DynamicScene> = assets.load(&l.path);
 
         let id = commands
-            .spawn(DynamicSceneBundle { scene, ..default() })
+            .spawn(DynamicSceneRoot(scene))
             .insert(SceneHook::new(move |_e, cmd| {
                 cmd.insert(PrefabAutoChild);
             }))
             .insert(PrefabAutoChild)
             .id();
 
-        commands.entity(e).push_children(&[id]);
+        commands.entity(e).add_children(&[id]);
+        
+        
     }
 }
 
@@ -126,6 +131,7 @@ fn conflict_resolve(
     }
 }
 
+  
 fn auto_children(
     mut commands: Commands,
     query: Query<(Entity, &ChildrenPrefab)>,
@@ -133,14 +139,19 @@ fn auto_children(
 ) {
     for (e, children) in query.iter() {
         let mut cmds = commands.entity(e);
-        for child in children.0.iter() {
+        for child in children.entities.iter() {
+            println!("Adding child: {:?}", child);
             if existing_entity.contains(*child) {
                 cmds.add_child(*child);
+            } else {
+                println!("nonexistent entity");
             }
         }
         cmds.remove::<ChildrenPrefab>();
     }
 }
+
+
 
 #[cfg(test)]
 mod test {

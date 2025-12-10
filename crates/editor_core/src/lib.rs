@@ -20,7 +20,6 @@ use bevy::prelude::*;
 use prelude::load_listener;
 use space_prefab::save::{SaveConfig, SaveState};
 use space_shared::*;
-use space_undo::AppAutoUndo;
 use task_storage::{BackgroundTask, BackgroundTaskStorage, BackgroundTaskStoragePlugin};
 
 pub struct EditorCore;
@@ -37,22 +36,22 @@ impl Plugin for EditorCore {
 
         app.configure_sets(Update, EditorLoadSet.in_set(EditorSet::Editor));
 
-        app.add_event::<EditorEvent>();
+        app.add_message::<EditorEvent>();
 
         app.init_resource::<PrefabMemoryCache>();
         app.init_resource::<EditorLoader>();
 
         app.add_systems(
             Update,
-            (apply_deferred, load_listener)
+            (ApplyDeferred, load_listener)
                 .chain()
                 .in_set(EditorLoadSet),
         );
         app.add_systems(Update, editor_event_listener);
 
-        app.auto_reflected_undo::<Parent>();
-        app.auto_reflected_undo::<Children>();
-        app.auto_undo::<PrefabMarker>();
+        //app.auto_reflected_undo::<ChildOf>();
+        //app.auto_reflected_undo::<Children>();
+        //app.auto_undo::<PrefabMarker>();
     }
 }
 
@@ -65,14 +64,14 @@ pub struct EditorLoader {
 }
 
 fn editor_event_listener(
-    mut events: EventReader<EditorEvent>,
+    mut events: MessageReader<EditorEvent>,
     mut load_server: ResMut<EditorLoader>,
     assets: Res<AssetServer>,
     mut save_state: ResMut<NextState<SaveState>>,
     mut save_config: ResMut<SaveConfig>,
     mut start_game_state: ResMut<NextState<EditorState>>,
     cache: ResMut<PrefabMemoryCache>,
-    mut gltf_events: EventWriter<gltf_unpack::EditorUnpackGltf>,
+    mut gltf_events: MessageWriter<gltf_unpack::EditorUnpackGltf>,
     mut background_tasks: ResMut<BackgroundTaskStorage>,
 ) {
     for event in events.read() {
@@ -100,8 +99,11 @@ fn editor_event_listener(
             EditorEvent::StartGame => {
                 start_game_state.set(EditorState::GamePrepare);
             }
-            EditorEvent::LoadGltfAsPrefab(path) => {
-                gltf_events.send(gltf_unpack::EditorUnpackGltf { path: path.clone() });
+            EditorEvent::LoadGltfAsPrefab{path, parent} => {
+                gltf_events.write(gltf_unpack::EditorUnpackGltf { 
+                    path: path.clone(),
+                    parent: *parent,
+                });
             }
         }
     }

@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use std::sync::Arc;
 
-use bevy::{ecs::query::QueryFilter, prelude::*, utils::HashMap};
+use bevy::{ecs::query::QueryFilter, platform::collections::HashMap, prelude::*};
 use bevy_egui::{
     egui::{collapsing_header::CollapsingState, TextEdit},
     *,
@@ -17,7 +17,7 @@ use space_editor_tabs::prelude::*;
 use crate::{colors::WARN_COLOR, editor_tab_name::EditorTabName};
 
 /// Event to clone entity with clone all registered components
-#[derive(Event)]
+#[derive(Message)]
 pub struct CloneEvent {
     pub id: Entity,
 }
@@ -40,7 +40,7 @@ impl Plugin for SpaceHierarchyPlugin {
                 .in_set(EditorSet::Editor)
                 .before(UndoSet::PerType),
         );
-        app.add_event::<CloneEvent>();
+        app.add_message::<CloneEvent>();
     }
 }
 
@@ -55,7 +55,7 @@ pub type HierarchyQueryIter<'a> = (
     Entity,
     Option<&'a Name>,
     Option<&'a Children>,
-    Option<&'a Parent>,
+    Option<&'a ChildOf>,
 );
 
 /// System to show hierarchy
@@ -64,18 +64,12 @@ pub fn show_hierarchy(
     query: Query<HierarchyQueryIter, With<PrefabMarker>>,
     all_entities: Query<HierarchyQueryIter>,
     mut selected: Query<Entity, With<Selected>>,
-    mut clone_events: EventWriter<CloneEvent>,
+    mut clone_events: MessageWriter<CloneEvent>,
     mut ui: NonSendMut<EditorUiRef>,
-    mut changes: EventWriter<NewChange>,
+    mut changes: MessageWriter<NewChange>,
     mut state: ResMut<HierarchyTabState>,
     auto_children: Query<(), With<SceneAutoChild>>,
 ) {
-    let mut all: Vec<_> = if state.show_editor_entities {
-        all_entities.iter().collect()
-    } else {
-        query.iter().collect()
-    };
-    all.sort_by_key(|a| a.0);
     let ui = &mut ui.0;
     ui.horizontal(|ui| {
         let button_size = ui
@@ -95,46 +89,64 @@ pub fn show_hierarchy(
     ui.spacing();
     let lower_filter = state.entity_filter.to_lowercase();
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        for (entity, _name, _children, parent) in all.iter().filter(|(_, name, _, _)| {
+    // Collect and filter entities once
+    let mut filtered_entities: Vec<_> = if state.show_editor_entities {
+        all_entities.iter().filter(|(_, name, _, parent)| {
+            parent.is_none() && // Only root entities
             name.map(|n| n.to_lowercase())
                 .unwrap_or_else(|| "entity".to_string())
                 .contains(&lower_filter)
-        }) {
-            if parent.is_none() {
-                if state.show_editor_entities {
-                    draw_entity::<()>(
-                        &mut commands,
-                        ui,
-                        &all_entities,
-                        *entity,
-                        &mut selected,
-                        &mut clone_events,
-                        &mut changes,
-                        &auto_children,
-                    );
-                } else {
-                    draw_entity::<With<PrefabMarker>>(
-                        &mut commands,
-                        ui,
-                        &query,
-                        *entity,
-                        &mut selected,
-                        &mut clone_events,
-                        &mut changes,
-                        &auto_children,
-                    );
-                }
+        }).collect()
+    } else {
+        query.iter().filter(|(_, name, _, parent)| {
+            parent.is_none() && // Only root entities
+            name.map(|n| n.to_lowercase())
+                .unwrap_or_else(|| "entity".to_string())
+                .contains(&lower_filter)
+        }).collect()
+    };
+
+    // Sort by entity ID only - simpler and faster:
+    filtered_entities.sort_unstable_by_key(|(entity, _, _, _)| *entity);
+    // Use virtual scrolling for performance
+    //let text_style = TextStyle::Body;
+    //let row_height = ui.text_style_height(&text_style);
+
+    egui::ScrollArea::vertical()
+    .auto_shrink(false)
+    .show(ui, |ui| {
+        for (entity, _name, _children, _parent) in &filtered_entities {
+            if state.show_editor_entities {
+                draw_entity::<()>(
+                    &mut commands,
+                    ui,
+                    &all_entities,
+                    *entity,
+                    &mut selected,
+                    &mut clone_events,
+                    &mut changes,
+                    &auto_children,
+                );
+            } else {
+                draw_entity::<With<PrefabMarker>>(
+                    &mut commands,
+                    ui,
+                    &query,
+                    *entity,
+                    &mut selected,
+                    &mut clone_events,
+                    &mut changes,
+                    &auto_children,
+                );
             }
         }
     });
 }
-
 type DrawIter<'a> = (
     Entity,
     Option<&'a Name>,
     Option<&'a Children>,
-    Option<&'a Parent>,
+    Option<&'a ChildOf>,
 );
 
 pub fn draw_entity<F: QueryFilter>(
@@ -143,8 +155,8 @@ pub fn draw_entity<F: QueryFilter>(
     query: &Query<DrawIter, F>,
     entity: Entity,
     selected: &mut Query<Entity, With<Selected>>,
-    clone_events: &mut EventWriter<CloneEvent>,
-    changes: &mut EventWriter<NewChange>,
+    clone_events: &mut MessageWriter<CloneEvent>,
+    changes: &mut MessageWriter<NewChange>,
     auto_children: &Query<(), With<SceneAutoChild>>,
 ) {
     let Ok((_, name, children, parent)) = query.get(entity) else {
@@ -158,11 +170,11 @@ pub fn draw_entity<F: QueryFilter>(
 
     let is_selected = selected.contains(entity);
 
-    if children.is_some_and(|children| children.iter().any(|child| query.get(*child).is_ok())) {
+    if children.is_some_and(|children| children.iter().any(|child| query.get(child.entity()).is_ok())) {
         CollapsingState::load_with_default_open(
             ui.ctx(),
             ui.make_persistent_id(entity_name.clone()),
-            true,
+            false,
         )
         .show_header(ui, |ui| {
             let mut entity_name = egui::RichText::new(entity_name.clone());
@@ -176,7 +188,7 @@ pub fn draw_entity<F: QueryFilter>(
             if is_auto_child {
                 response.context_menu(|ui| {
                     if ui.button("Delete").clicked() {
-                        commands.entity(entity).despawn_recursive();
+                        commands.entity(entity).despawn();
                     }
                     ui.label(crate::egui::RichText::new("⚠ Concrete Bevy entity cannot be reparented or cloned.\nTry \"Unpack gltf as prefab\" for that.").color(WARN_COLOR));
                 });
@@ -218,7 +230,7 @@ pub fn draw_entity<F: QueryFilter>(
                     commands,
                     ui,
                     query,
-                    *child,
+                    child.entity(),
                     selected,
                     clone_events,
                     changes,
@@ -239,7 +251,7 @@ pub fn draw_entity<F: QueryFilter>(
         if is_auto_child {
             selectable.context_menu(|ui| {
                 if ui.button("Delete").clicked() {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 ui.label(crate::egui::RichText::new("⚠ Concrete Bevy entity cannot be reparented or cloned.\nTry \"Unpack gltf as prefab\" for that.").color(WARN_COLOR));
             });
@@ -280,29 +292,29 @@ fn hierarchy_entity_context(
     ui: &mut egui::Ui,
     commands: &mut Commands<'_, '_>,
     entity: Entity,
-    changes: &mut EventWriter<'_, NewChange>,
-    clone_events: &mut EventWriter<'_, CloneEvent>,
+    changes: &mut MessageWriter<'_, NewChange>,
+    clone_events: &mut MessageWriter<'_, CloneEvent>,
     selected: &mut Query<'_, '_, Entity, With<Selected>>,
-    parent: Option<&Parent>,
+    parent: Option<&ChildOf>,
 ) {
     if ui.button("Add child").clicked() {
         let new_id = commands.spawn_empty().insert(PrefabMarker).id();
         commands.entity(entity).add_child(new_id);
-        changes.send(NewChange {
+        changes.write(NewChange {
             change: Arc::new(AddedEntity { entity: new_id }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Delete").clicked() {
-        commands.entity(entity).despawn_recursive();
-        changes.send(NewChange {
+        commands.entity(entity).despawn();
+        changes.write(NewChange {
             change: Arc::new(RemovedEntity { entity }),
         });
-        ui.close_menu();
+        ui.close();
     }
     if ui.button("Clone").clicked() {
-        clone_events.send(CloneEvent { id: entity });
-        ui.close_menu();
+        clone_events.write(CloneEvent { id: entity });
+        ui.close();
     }
     if !selected.is_empty() && !selected.contains(entity) && ui.button("Attach to").clicked() {
         for e in selected.iter() {
@@ -310,7 +322,7 @@ fn hierarchy_entity_context(
         }
     }
     if parent.is_some() && ui.button("Detach").clicked() {
-        commands.entity(entity).remove_parent();
+        commands.entity(entity).remove::<ChildOf>();
     }
 }
 
@@ -320,7 +332,7 @@ pub struct ClonedEntity;
 fn clone_enitites(
     mut commands: Commands,
     query: Query<EntityRef>,
-    mut events: EventReader<CloneEvent>,
+    mut events: MessageReader<CloneEvent>,
     editor_registry: Res<EditorRegistry>,
 ) {
     for event in events.read() {
@@ -331,16 +343,16 @@ fn clone_enitites(
             map.insert(src_id, dst_id);
             if let Ok(entity) = query.get(src_id) {
                 if entity.contains::<PrefabMarker>() {
-                    let mut cmds = commands.entity(dst_id);
-                    cmds.insert(ClonedEntity);
+                    let mut cmds = commands.entity(dst_id).insert(ClonedEntity);
+                    commands.entity(src_id).clone_with_opt_in(dst_id, |_| {});
 
-                    editor_registry.clone_entity_flat(&mut cmds, &entity);
+                    // editor_registry.clone_entity_flat(&mut cmds, &entity);
 
-                    if let Some(parent) = entity.get::<Parent>() {
-                        if let Some(new_parent) = map.get(&parent.get()) {
+                    if let Some(parent) = entity.get::<ChildOf>() {
+                        if let Some(new_parent) = map.get(&parent.parent()) {
                             commands.entity(*new_parent).add_child(dst_id);
                         } else {
-                            commands.entity(parent.get()).add_child(dst_id);
+                            commands.entity(parent.parent()).add_child(dst_id);
                         }
                     }
 
@@ -359,11 +371,11 @@ fn clone_enitites(
 fn detect_cloned_entities(
     mut commands: Commands,
     query: Query<Entity, Added<ClonedEntity>>,
-    mut changes: EventWriter<NewChange>,
+    mut changes: MessageWriter<NewChange>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).remove::<ClonedEntity>();
-        changes.send(NewChange {
+        changes.write(NewChange {
             change: Arc::new(AddedEntity { entity }),
         });
     }

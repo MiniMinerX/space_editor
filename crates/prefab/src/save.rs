@@ -1,36 +1,44 @@
 use bevy::{
-    ecs::{entity::MapEntities, reflect::ReflectMapEntities},
-    prelude::*,
-    tasks::IoTaskPool,
-    utils::HashSet,
+    ecs::{entity::MapEntities, reflect::ReflectMapEntities}, platform::collections::HashSet, prelude::*, tasks::IoTaskPool
 };
 use space_shared::{EditorPrefabPath, PrefabMarker, PrefabMemoryCache};
 use std::{any::TypeId, fs, io::Write};
 
 use crate::prelude::{EditorRegistry, EditorRegistryExt, SceneAutoChild};
 
-#[derive(Reflect, Default, Component, Clone)]
+#[derive(Reflect, Default, Component, Clone, MapEntities)]
 #[reflect(Component, MapEntities)]
 /// Component that holds children entity/prefab information
 /// that should be serialized
-pub struct ChildrenPrefab(pub Vec<Entity>);
+pub struct ChildrenPrefab{
+    #[entities]
+    pub entities: Vec<Entity>,
+}
 
 impl ChildrenPrefab {
     pub fn from_children(children: &Children) -> Self {
-        Self(children.to_vec())
+        ChildrenPrefab { 
+            entities: children.to_vec(),
+        }
     }
 }
 
+/* 
 impl MapEntities for ChildrenPrefab {
     #[cfg(not(tarpaulin_include))]
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.0 = self
-            .0
-            .iter()
-            .map(|e| entity_mapper.map_entity(*e))
-            .collect();
+        // =================================================================================
+        // DIAGNOSTIC LOGS: Check your console for these messages when loading a prefab.
+        // =================================================================================
+        warn!("ChildrenPrefab::map_entities CALLED. This is a good sign!");
+        for entity in self.0.iter_mut() {
+            let old_id = *entity;
+            *entity = entity_mapper.get_mapped(old_id);
+            info!("    Mapping child {:?} -> {:?}", old_id, *entity);
+        }
     }
 }
+    */
 
 struct SaveResourcesPrefabPlugin;
 
@@ -53,7 +61,7 @@ impl Plugin for SavePrefabPlugin {
             OnEnter(SaveState::Save),
             (
                 prepare_children,
-                apply_deferred,
+                ApplyDeferred,
                 serialize_scene,
                 delete_prepared_children,
             )
@@ -99,7 +107,7 @@ fn delete_prepared_children(mut commands: Commands, query: Query<Entity, With<Ch
 pub fn serialize_scene(world: &mut World) {
     let Some(config) = world.get_resource::<SaveConfig>().cloned() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Save config resource not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -113,7 +121,7 @@ pub fn serialize_scene(world: &mut World) {
 
     if entities.is_empty() {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Saving empty scene",
             space_shared::toast::ToastKind::Warning,
         ));
@@ -122,7 +130,7 @@ pub fn serialize_scene(world: &mut World) {
 
     let Some(registry) = world.get_resource::<EditorRegistry>().cloned() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "Editor Registry not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -139,15 +147,22 @@ pub fn serialize_scene(world: &mut World) {
     let mut builder = DynamicSceneBuilder::from_world(world);
     builder = builder
         .allow_all()
-        .with_filter(SceneFilter::Allowlist(HashSet::from_iter(
+        .with_resource_filter(SceneFilter::Allowlist(HashSet::from_iter(
             allow_types.iter().cloned(),
         )))
+        .with_component_filter(SceneFilter::Allowlist(HashSet::from_iter(
+            allow_types.iter().cloned(),
+        )))
+        // Deny test for standard material
+        //.deny_component::<MeshMaterial3d<StandardMaterial>>()
+        //.deny_component::<Mesh3d>
+
         .extract_entities(entities.iter().copied());
     let scene = builder.build();
 
     let Some(app_registry) = world.get_resource::<AppTypeRegistry>() else {
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             "App Registry not initialized",
             space_shared::toast::ToastKind::Error,
         ));
@@ -193,7 +208,7 @@ pub fn serialize_scene(world: &mut World) {
         #[cfg(not(tarpaulin_include))]
         let err = format!("failed to serialize prefab: {:?}", e);
         #[cfg(feature = "editor")]
-        world.send_event(space_shared::toast::ToastMessage::new(
+        world.write_message(space_shared::toast::ToastMessage::new(
             &err,
             space_shared::toast::ToastKind::Error,
         ));
@@ -315,11 +330,11 @@ mod tests {
             let child_id = commands.spawn_empty().id();
             commands
                 .spawn(PrefabMarker)
-                .insert(ChildrenPrefab(vec![child_id]));
+                .insert(ChildrenPrefab{entities: vec![child_id]});
             let child_id = commands.spawn_empty().id();
             commands
                 .spawn(PrefabMarker)
-                .insert(ChildrenPrefab(vec![child_id]));
+                .insert(ChildrenPrefab{entities: vec![child_id]});
             commands.spawn(PrefabMarker);
         })
         .add_systems(Update, delete_prepared_children);
@@ -338,10 +353,10 @@ mod tests {
         world.spawn(PrefabMarker).add_child(child);
 
         let mut query = world.query::<&Children>();
-        let children = query.single(&world);
+        let children = query.single(&world).unwrap();
         let prefab = ChildrenPrefab::from_children(children);
 
-        assert_eq!(prefab.0.len(), 1);
+        assert_eq!(prefab.entities.len(), 1);
     }
 
     #[test]
@@ -358,7 +373,7 @@ mod tests {
             EditorRegistryPlugin {},
             SaveResourcesPrefabPlugin {},
         ))
-        .add_event::<space_shared::toast::ToastMessage>()
+        .add_message::<space_shared::toast::ToastMessage>()
         .insert_resource(save_config)
         .init_resource::<PrefabMemoryCache>();
 
@@ -367,9 +382,9 @@ mod tests {
         serialize_scene(&mut app.world_mut());
         let events = app
             .world_mut()
-            .resource::<Events<space_shared::toast::ToastMessage>>();
+            .resource::<Messages<space_shared::toast::ToastMessage>>();
 
-        let mut iter = events.get_reader();
+        let mut iter = events.get_cursor();
         let iter = iter.read(events);
         iter.for_each(|e| assert_eq!(e.text, "Saving empty scene"));
     }

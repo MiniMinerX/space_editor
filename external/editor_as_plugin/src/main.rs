@@ -12,7 +12,7 @@ fn main() {
             resizable: true,
             focused: true,
             title: "Test Editor".into(),
-            resolution: WindowResolution::new(1600., 900.),
+            resolution: WindowResolution::new(1600, 900),
             visible: true,
             ..default()
         }),
@@ -26,7 +26,7 @@ fn main() {
             MeshPrimitive3dPrefab::Cube(1.2),
             Name::new("Cube".to_string()),
             Transform::default(),
-            VisibilityBundle::default(),
+            Visibility::default(),
         ));
     })
     .run();

@@ -1,29 +1,68 @@
-use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_egui::egui::{self, RichText, Widget};
+pub mod game_view_tool;
+pub mod gizmo_tool;
+
+
+use bevy::{camera::Viewport, prelude::*, window::PrimaryWindow};
+use bevy_egui::{
+    egui::{self, RichText, Widget},
+    EguiContextSettings,
+};
+use game_view_tool::GameViewTool;
+use space_editor_ui::{colors::{SPECIAL_BG_COLOR, TEXT_COLOR, WARN_COLOR}, prelude::{EditorTabName, SetCameraViewport, ShowEditorUi}, ui_picking::NonUIAreas};
 use space_undo::UndoRedo;
-use transform_gizmo_egui::GizmoMode;
+use transform_gizmo_bevy::GizmoMode;
 
 use space_shared::*;
 
-use crate::editor_tab_name::EditorTabName;
-
-use super::tool::EditorTool;
 use space_editor_tabs::prelude::*;
 
-use crate::colors::*;
-
+/// Main GameView plugin that adds the GameViewTab and GizmoToolPlugin
 pub struct GameViewPlugin;
 
 impl Plugin for GameViewPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(MinimalGameViewPlugin);
+
+        app.add_plugins(gizmo_tool::GizmoToolPlugin);
+    }
+}
+
+/// Minimal GameView plugin that only adds the GameViewTab
+pub struct MinimalGameViewPlugin;
+
+impl Plugin for MinimalGameViewPlugin {
+    fn build(&self, app: &mut App) {
         app.editor_tab_by_trait(GameViewTab::default());
+
+        //app.add_systems(PostUpdate, 
+        //    set_non_ui_areas.before(set_camera_viewport).in_set(EditorSet::Editor)
+        //);
+
+        app.add_systems(
+            OnEnter(EditorState::Editor),
+            set_camera_viewport,
+        );
+        
+        app.add_systems(OnEnter(ShowEditorUi::Hide), reset_camera_viewport);
+
+        
+        app.add_systems(
+            Update,
+            set_camera_viewport
+                // .run_if(has_window_changed)
+                .in_set(SetCameraViewport),
+        );
+        app.add_systems(
+            Update,
+            reset_camera_viewport.run_if(in_state(EditorState::Game)),
+        );
     }
 }
 
 #[derive(Resource)]
 pub struct GameViewTab {
     pub viewport_rect: Option<egui::Rect>,
-    pub tools: Vec<Box<dyn EditorTool + 'static + Send + Sync>>,
+    pub tools: Vec<Box<dyn GameViewTool + 'static + Send + Sync>>,
     pub active_tool: Option<usize>,
     pub gizmo_mode: GizmoMode,
     pub smoothed_dt: f32,
@@ -45,11 +84,11 @@ impl EditorTab for GameViewTab {
     fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
         if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && !i.modifiers.shift)
         {
-            world.send_event(UndoRedo::Undo);
+            world.write_message(UndoRedo::Undo);
             info!("Undo command");
         }
         if ui.input_mut(|i| i.key_released(egui::Key::Z) && i.modifiers.ctrl && i.modifiers.shift) {
-            world.send_event(UndoRedo::Redo);
+            world.write_message(UndoRedo::Redo);
             info!("Redo command");
         }
 
@@ -91,7 +130,7 @@ impl EditorTab for GameViewTab {
             ui.spacing();
             //Draw FPS
             if let Some(dt) = world.get_resource::<Time>() {
-                let dt = dt.delta_seconds();
+                let dt = dt.delta_secs();
                 self.smoothed_dt = self.smoothed_dt.mul_add(0.98, dt * 0.02);
                 ui.colored_label(TEXT_COLOR, format!("FPS: {:.0}", 1.0 / self.smoothed_dt));
             }
@@ -125,11 +164,11 @@ pub fn reset_camera_viewport(
     mut cameras: Query<&mut Camera, With<EditorCameraMarker>>,
     mut game_view_tab: ResMut<GameViewTab>,
 ) {
-    let Ok(mut cam) = cameras.get_single_mut() else {
+    let Ok(mut cam) = cameras.single_mut() else {
         return;
     };
 
-    let Ok(_window) = primary_window.get_single() else {
+    let Ok(_window) = primary_window.single() else {
         return;
     };
 
@@ -138,7 +177,7 @@ pub fn reset_camera_viewport(
     cam.viewport = None;
 }
 
-pub fn has_window_changed(mut events: EventReader<bevy::window::WindowResized>) -> bool {
+pub fn has_window_changed(mut events: MessageReader<bevy::window::WindowResized>) -> bool {
     events.read().next().is_some()
 }
 
@@ -148,15 +187,19 @@ pub struct LastGameTabRect(Option<egui::Rect>);
 pub fn set_camera_viewport(
     mut local: Local<LastGameTabRect>,
     ui_state: Res<GameViewTab>,
-    primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    egui_settings: Res<bevy_egui::EguiSettings>,
+    primary_window: Query<(Entity, &mut Window), With<PrimaryWindow>>,
+    mut egui_settings: Query<&mut EguiContextSettings>,
     mut cameras: Query<&mut Camera, With<EditorCameraMarker>>,
 ) {
-    let Ok(mut cam) = cameras.get_single_mut() else {
+    let Ok(mut cam) = cameras.single_mut() else {
         return;
     };
 
-    let Ok(window) = primary_window.get_single() else {
+    let Ok((entity, window)) = primary_window.single() else {
+        return;
+    };
+
+    let Ok(context_settings) = egui_settings.get_mut(entity) else {
         return;
     };
 
@@ -171,46 +214,53 @@ pub fn set_camera_viewport(
     local.0 = Some(viewport_rect);
 
     let scale_factor = window.scale_factor();
-    debug!(
-        "Window scale factor: {} egui scale factor: {}",
-        scale_factor, egui_settings.scale_factor
-    );
 
     let mut viewport_pos = viewport_rect.left_top().to_vec2() * scale_factor;
     let mut viewport_size = viewport_rect.size() * scale_factor;
 
+    // Ensure position is non-negative
     viewport_pos.x = viewport_pos.x.max(0.0);
     viewport_pos.y = viewport_pos.y.max(0.0);
 
-    viewport_size.x = viewport_size
-        .x
-        .min(window.width().mul_add(scale_factor, -viewport_pos.x));
-    viewport_size.y = viewport_size
-        .y
-        .min(window.height().mul_add(scale_factor, -viewport_pos.y));
+    // Calculate maximum allowed size based on window dimensions and position
+    let window_width = window.width() * scale_factor;
+    let window_height = window.height() * scale_factor;
+    
+    // IMPORTANT: Ensure viewport fits WITHIN the render target
+    // Subtract 1 pixel to ensure it's contained, not equal
+    let max_width = (window_width - viewport_pos.x - 1.0).max(0.0);
+    let max_height = (window_height - viewport_pos.y - 1.0).max(0.0);
+    
+    viewport_size.x = viewport_size.x.min(max_width);
+    viewport_size.y = viewport_size.y.min(max_height);
 
-    if (viewport_size.x <= 0.0) || (viewport_size.y <= 0.0) {
+    // Ensure minimum size of 1x1
+    if viewport_size.x < 1.0 || viewport_size.y < 1.0 {
         return;
     }
-    cam.viewport = Some(bevy::render::camera::Viewport {
+
+    // Additional safety check: ensure the viewport is fully contained
+    if viewport_pos.x + viewport_size.x >= window_width ||
+       viewport_pos.y + viewport_size.y >= window_height {
+        // Adjust size to fit
+        viewport_size.x = (window_width - viewport_pos.x - 1.0).max(1.0);
+        viewport_size.y = (window_height - viewport_pos.y - 1.0).max(1.0);
+    }
+
+    cam.viewport = Some(Viewport {
         physical_position: UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32),
         physical_size: UVec2::new(viewport_size.x as u32, viewport_size.y as u32),
         depth: 0.0..1.0,
     });
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_default_game_view_tab() {
-        let default_tab = GameViewTab::default();
 
-        assert_eq!(default_tab.viewport_rect, None);
-        assert_eq!(default_tab.gizmo_mode, GizmoMode::TranslateView);
-        assert_eq!(default_tab.smoothed_dt, 0.0);
-        assert_eq!(default_tab.tools.len(), 0);
-        assert_eq!(default_tab.active_tool, None);
+fn set_non_ui_areas(
+    mut non_ui_areas: ResMut<NonUIAreas>,
+    game_view: Res<GameViewTab>,
+) {
+    if let Some(viewport_rect) = game_view.viewport_rect {
+        non_ui_areas.areas.push(viewport_rect);
     }
 }

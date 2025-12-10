@@ -2,15 +2,14 @@
 
 #[cfg(test)]
 mod tests;
+use std::io::Write;
+
 // This part of code is used for saving and loading settings and window state
 use bevy::{
-    prelude::*,
-    reflect::{
+    platform::collections::HashMap, prelude::*, reflect::{
         serde::{ReflectDeserializer, ReflectSerializer},
         GetTypeRegistration,
-    },
-    utils::HashMap,
-    window::WindowCloseRequested,
+    }, window::WindowCloseRequested
 };
 use ron::ser::PrettyConfig;
 use serde::de::DeserializeSeed;
@@ -30,8 +29,8 @@ impl Plugin for PersistencePlugin {
         app.init_resource::<PersistenceRegistry>()
             .init_resource::<PersistenceSettings>();
 
-        app.add_event::<PersistenceEvent>();
-        app.add_event::<PersistenceResourceBroadcastEvent>();
+        app.add_message::<PersistenceEvent>();
+        app.add_message::<PersistenceResourceBroadcastEvent>();
 
         app.configure_sets(
             Update,
@@ -57,33 +56,33 @@ impl Plugin for PersistencePlugin {
 }
 
 fn persistence_save_on_close(
-    mut events: EventWriter<PersistenceEvent>,
+    mut events: MessageWriter<PersistenceEvent>,
     settings: Res<PersistenceSettings>,
-    mut close_events: EventReader<WindowCloseRequested>,
+    mut close_events: MessageReader<WindowCloseRequested>,
 ) {
     if settings.save_on_close && close_events.read().next().is_some() {
-        events.send(PersistenceEvent::Save);
+        events.write(PersistenceEvent::Save);
     }
 }
 
 fn persistence_startup_load(
-    mut events: EventWriter<PersistenceEvent>,
+    mut events: MessageWriter<PersistenceEvent>,
     settings: Res<PersistenceSettings>,
 ) {
     if settings.load_on_startup {
-        events.send(PersistenceEvent::Load);
+        events.write(PersistenceEvent::Load);
     }
 }
 
 fn persistence_start(
-    mut events: EventReader<PersistenceEvent>,
-    mut broadcast: EventWriter<PersistenceResourceBroadcastEvent>,
+    mut events: MessageReader<PersistenceEvent>,
+    mut broadcast: MessageWriter<PersistenceResourceBroadcastEvent>,
     mut persistence: ResMut<PersistenceRegistry>,
 ) {
     for event in events.read() {
         match event {
             PersistenceEvent::Save => {
-                broadcast.send(PersistenceResourceBroadcastEvent::Pack);
+                broadcast.write(PersistenceResourceBroadcastEvent::Pack);
                 persistence.mode = PersistenceMode::Saving;
                 persistence.save_counter = 0;
             }
@@ -102,7 +101,7 @@ fn persistence_start(
                     }
                 }
 
-                broadcast.send(PersistenceResourceBroadcastEvent::Unpack);
+                broadcast.write(PersistenceResourceBroadcastEvent::Unpack);
                 persistence.mode = PersistenceMode::Loading;
                 persistence.load_counter = 0;
             }
@@ -124,13 +123,49 @@ fn persistence_end(mut persistence: ResMut<PersistenceRegistry>) {
 
             match &persistence.source {
                 PersistenceDataSource::File(path) => {
-                    let mut file = std::fs::File::create(path).unwrap();
-                    ron::ser::to_writer_pretty(
-                        &mut file,
+                    //let mut file = std::fs::File::create(path).unwrap();
+                    //ron::ser::to_writer_pretty(
+                    //    &mut file,
+                    //    &persistence.data,
+                    //    PrettyConfig::default(),
+                    //)
+                    //.unwrap();
+
+                    // 1. Serialize data to a RON string
+                    let ron_string = match ron::ser::to_string_pretty(
                         &persistence.data,
-                        PrettyConfig::default(),
-                    )
-                    .unwrap();
+                        PrettyConfig::default(), // Use your desired PrettyConfig
+                    ) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            error!(
+                                "Persistence saving error: Failed to serialize data to RON for path {:?}: {}",
+                                path, e
+                            );
+                            return; // Or handle the error as appropriate
+                        }
+                    };
+
+                     // 2. Write the RON string to the file
+                     match std::fs::File::create(path) {
+                        Ok(mut file_handle) => {
+                            if let Err(e) = file_handle.write_all(ron_string.as_bytes()) {
+                                error!(
+                                    "Persistence saving error: Failed to write serialized data to file {:?}: {}",
+                                    path, e
+                                );
+                            } else {
+                                info!("Persistence: Successfully saved data to {:?}", path);
+                            }
+                        }
+                        Err(e) => {
+                            error!(
+                                "Persistence saving error: Failed to create file {:?}: {}",
+                                path, e
+                            );
+                        }
+                    }
+
                 }
                 PersistenceDataSource::Memory => {
                     //do nothing
@@ -191,18 +226,18 @@ pub struct PersistenceRegistry {
     mode: PersistenceMode,
 }
 
-#[derive(Event, Default)]
+#[derive(Message, Default)]
 pub struct PersistenceLoaded<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub enum PersistenceEvent {
     Save,
     Load,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 enum PersistenceResourceBroadcastEvent {
     Unpack,
     Pack,
@@ -258,7 +293,7 @@ impl AppPersistenceExt for App {
             .target_count += 1;
 
         self.register_type::<T>();
-        self.add_event::<PersistenceLoaded<T>>();
+        self.add_message::<PersistenceLoaded<T>>();
 
         self.init_resource::<PersistenceLoadPipeline<T>>();
 
@@ -281,7 +316,7 @@ impl AppPersistenceExt for App {
             .target_count += 1;
 
         self.register_type::<T>();
-        self.add_event::<PersistenceLoaded<T>>();
+        self.add_message::<PersistenceLoaded<T>>();
 
         self.insert_resource(PersistenceLoadPipeline {
             load_fn: load_function,
@@ -299,11 +334,11 @@ impl AppPersistenceExt for App {
 fn persistence_resource_system<
     T: Default + Reflect + FromReflect + Resource + GetTypeRegistration,
 >(
-    mut events: EventReader<PersistenceResourceBroadcastEvent>,
+    mut events: MessageReader<PersistenceResourceBroadcastEvent>,
     mut persistence: ResMut<PersistenceRegistry>,
     mut resource: ResMut<T>,
     registry: Res<AppTypeRegistry>,
-    mut persistence_loaded: EventWriter<PersistenceLoaded<T>>,
+    mut persistence_loaded: MessageWriter<PersistenceLoaded<T>>,
     pipeline: ResMut<PersistenceLoadPipeline<T>>,
 ) {
     for event in events.read() {
@@ -354,7 +389,7 @@ fn persistence_resource_system<
                 (pipeline.load_fn)(resource.as_mut(), converted);
                 resource.set_changed();
 
-                persistence_loaded.send(PersistenceLoaded::<T>::default());
+                persistence_loaded.write(PersistenceLoaded::<T>::default());
                 persistence.load_counter += 1;
             }
         }

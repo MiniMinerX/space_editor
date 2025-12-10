@@ -5,7 +5,7 @@
 use bevy::prelude::*;
 use space_editor::prelude::*;
 
-#[derive(Event, Default, Resource, Reflect, Clone)]
+#[derive(Message, Default, Resource, Reflect, Clone)]
 #[reflect(Resource)]
 pub struct ToggleSpin {
     speed: f32,
@@ -20,7 +20,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(SpaceEditorPlugin)
         .add_systems(Startup, simple_editor_setup)
-        .add_event::<ToggleSpin>()
+        .add_message::<ToggleSpin>()
         .editor_registry_event::<ToggleSpin>()
         .editor_registry::<Spin>()
         .add_systems(Startup, setup)
@@ -40,7 +40,7 @@ fn setup(mut commands: Commands) {
 fn spin_entities(mut query: Query<(&mut Transform, &Spin)>, time: Res<Time>) {
     for (mut transform, spin) in query.iter_mut() {
         if spin.0 {
-            transform.rotate(Quat::from_rotation_y(spin.1 * time.delta_seconds()));
+            transform.rotate(Quat::from_rotation_y(spin.1 * time.delta_secs()));
         }
     }
 }

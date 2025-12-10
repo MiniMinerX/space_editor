@@ -16,7 +16,7 @@ fn main() {
             resizable: true,
             focused: true,
             title: "Space Editor".into(),
-            resolution: WindowResolution::new(1600., 900.),
+            resolution: WindowResolution::new(1600, 900),
             visible: true,
             ..default()
         }),

@@ -1,11 +1,21 @@
 use crate::*;
-use bevy::prelude::*;
+use bevy::{camera::Viewport, prelude::*};
 
 pub struct EditorDefaultCameraPlugin;
 
 impl Plugin for EditorDefaultCameraPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
+
+        app.configure_sets(
+            Update,
+            SetCameraViewport
+                .after(reset_editor_camera_state)
+                .before(update_pan_orbit)
+                .in_set(UiSystemSet)
+                .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
+        );
+
         app.add_systems(
             Update,
             reset_editor_camera_state
@@ -19,17 +29,25 @@ impl Plugin for EditorDefaultCameraPlugin {
                 .before(PanOrbitCameraSystemSet)
                 .in_set(EditorSet::Editor),
         );
-        app.add_systems(
-            Update,
-            ui_camera_block
-                .after(reset_editor_camera_state)
-                .before(update_pan_orbit)
-                .in_set(EditorSet::Editor),
-        );
+        //app.add_systems(
+        //    Update,
+        //    ui_camera_block
+        //        .after(reset_editor_camera_state)
+        //        .before(update_pan_orbit)
+        //        .in_set(EditorSet::Editor),
+        //);
         app.add_systems(OnEnter(EditorState::GamePrepare), reset_play_camera_state);
         app.add_systems(OnEnter(EditorState::Editor), reset_editor_camera_state);
+
+        
+        //app.add_systems(Update, ui_camera_block.after(UpdateNonUIAreas).in_set(EditorSet::Editor));
     }
 }
+
+
+/// Preffer to set camera viewport in this system set
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct SetCameraViewport;
 
 /// Resource, which contains state for editor camera (default or any)
 #[derive(Resource, Default)]
@@ -62,48 +80,50 @@ pub fn update_pan_orbit(
     }
 }
 
-type PlayModeCameraFilter = (Without<EditorCameraMarker>, With<PlaymodeCamera>);
-type EditorModeCameraFilter = (With<EditorCameraMarker>, Without<PlaymodeCamera>);
+//type PlayModeCameraFilter = (Without<EditorCameraMarker>, With<PlaymodeCamera>);
+//type EditorModeCameraFilter = (With<EditorCameraMarker>, Without<PlaymodeCamera>);
 
 /// System to change camera from editor camera to game play camera (if exist)
 pub fn change_camera_in_play(
-    mut editor_cameras: Query<&mut Camera, EditorModeCameraFilter>,
-    mut play_cameras: Query<&mut Camera, PlayModeCameraFilter>,
+    //mut editor_cameras: Query<&mut Camera, EditorModeCameraFilter>,
+    //mut play_cameras: Query<&mut Camera, PlayModeCameraFilter>,
+    mut editor_only_cameras: Query<&mut Camera, (With<EditorCameraMarker>, Without<PlaymodeCamera>)>,
+    mut play_cameras: Query<&mut Camera, With<PlaymodeCamera>>,
     primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut toast: EventWriter<ToastMessage>,
+    mut toast: MessageWriter<ToastMessage>,
 ) {
     if !play_cameras.is_empty() {
-        editor_cameras.iter_mut().for_each(|mut cam| {
+        editor_only_cameras.iter_mut().for_each(|mut cam| {
             cam.is_active = false;
         });
         play_cameras.iter_mut().for_each(|mut cam| {
             cam.is_active = true;
         });
 
-        let Ok(window) = primary_window.get_single() else {
+        let Ok(window) = primary_window.single() else {
             error!("Failed to get Primary Window");
-            toast.send(ToastMessage::new(
+            toast.write(ToastMessage::new(
                 "Failed to get Primary Window",
                 space_shared::toast::ToastKind::Error,
             ));
             return;
         };
-        let Ok(mut cam) = play_cameras.get_single_mut() else {
+        let Ok(mut cam) = play_cameras.single_mut() else {
             error!("No play camera found");
-            toast.send(ToastMessage::new(
+            toast.write(ToastMessage::new(
                 "No play camera found",
                 space_shared::toast::ToastKind::Error,
             ));
             return;
         };
-        cam.viewport = Some(bevy::render::camera::Viewport {
+        cam.viewport = Some(Viewport {
             physical_position: UVec2::new(0, 0),
             physical_size: UVec2::new(window.width() as u32, window.height() as u32),
             depth: 0.0..1.0,
         });
     } else {
         error!("No play camera found");
-        toast.send(ToastMessage::new(
+        toast.write(ToastMessage::new(
             "No play camera found",
             space_shared::toast::ToastKind::Error,
         ));
@@ -112,14 +132,14 @@ pub fn change_camera_in_play(
 
 /// System to change camera from game camera to editor camera (if exist)
 pub fn change_camera_in_editor(
-    mut editor_cameras: Query<&mut Camera, EditorModeCameraFilter>,
-    mut play_cameras: Query<&mut Camera, PlayModeCameraFilter>,
+    mut editor_cameras: Query<&mut Camera, With<EditorCameraMarker>>,
+    mut play_only_cameras: Query<&mut Camera, (With<PlaymodeCamera>, Without<EditorCameraMarker>)>,
 ) {
     for mut ecam in editor_cameras.iter_mut() {
         ecam.is_active = true;
     }
 
-    for mut play_cam in play_cameras.iter_mut() {
+    for mut play_cam in play_only_cameras.iter_mut() {
         play_cam.is_active = false;
     }
 }
@@ -145,7 +165,7 @@ pub fn draw_camera_gizmo(
         (&GlobalTransform, &Projection),
         (
             With<Camera>,
-            Without<EditorCameraMarker>,
+            //Without<EditorCameraMarker>,
             Without<DisableCameraSkip>,
             Without<NotShowCamera>,
         ),
@@ -154,11 +174,14 @@ pub fn draw_camera_gizmo(
     for (transform, _projection) in cameras.iter() {
         let pink = Color::srgb(1.0, 0.41, 0.71);
 
+        let scale = 0.4;
+        let scale2 = 0.4 / 1.5;
+        
         let transform = transform.compute_transform();
-        let cuboid_transform = transform.with_scale(Vec3::new(1.0, 1.0, 2.0));
+        let cuboid_transform = transform.with_scale(Vec3::new(1.0 * scale2, 1.0 * scale2, 2.0 * scale2));
         gizmos.cuboid(cuboid_transform, pink);
 
-        let scale = 1.5;
+        
 
         gizmos.line(
             transform.translation,
@@ -192,10 +215,38 @@ pub fn draw_camera_gizmo(
         let rect_transform = transform.mul_transform(rect_transform);
 
         gizmos.rect(
-            rect_transform.translation,
-            rect_transform.rotation,
+            Isometry3d::new(rect_transform.translation, rect_transform.rotation),
             Vec2::splat(scale * 2.0),
             pink,
         );
+    }
+}
+
+
+
+
+
+/// System to block camera control if egui is using mouse
+pub fn ui_camera_block(
+    mut ctxs: Query<&mut EguiContext, With<PrimaryWindow>>,
+    mut state: ResMut<EditorCameraEnabled>,
+    non_ui_areas: Res<ui_picking::NonUIAreas>,
+) {
+    let Ok(mut ctx_ref) = ctxs.single_mut() else {
+        return;
+    };
+    let ctx = ctx_ref.get_mut();
+    if ctx.is_using_pointer() || ctx.is_pointer_over_area() {
+        let Some(pos) = ctx.pointer_latest_pos() else {
+            return;
+        };
+
+        for area in non_ui_areas.areas.iter() {
+            if area.contains(pos) {
+                return;
+            }
+        }
+
+        *state = EditorCameraEnabled(false);
     }
 }

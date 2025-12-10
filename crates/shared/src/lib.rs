@@ -62,11 +62,14 @@ pub enum EditorPrefabPath {
     MemoryCache,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub enum EditorEvent {
     Load(EditorPrefabPath),
     Save(EditorPrefabPath),
-    LoadGltfAsPrefab(String),
+    LoadGltfAsPrefab{
+        path: String, 
+        parent: Option<Entity>,
+    },
     StartGame,
 }
 

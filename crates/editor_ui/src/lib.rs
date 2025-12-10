@@ -15,9 +15,6 @@ pub mod change_chain;
 /// This module contains UI logic for debug panels (like WorldInspector)
 pub mod debug_panels;
 
-/// This module contains Game view tab logic
-pub mod game_view;
-
 /// This module contains Hierarchy tab logic
 pub mod hierarchy;
 
@@ -29,12 +26,6 @@ pub mod meshless_visualizer;
 
 /// This module contains Settings tab logic
 pub mod settings;
-
-/// This module contains traits and methods to register tools in game view tab
-pub mod tool;
-
-/// This module contains IMPLEMENTATIONS for existed tools (like Gizmo manipulation tool)
-pub mod tools;
 
 /// This module contains methods for bundle registration
 pub mod ui_registration;
@@ -61,36 +52,35 @@ pub mod sizing;
 
 pub mod icons;
 
+pub mod ui_picking;
+
+pub mod startup_systems;
+
 use bevy_debug_grid::{Grid, GridAxis, SubGrid, TrackedGrid};
-use bevy_mod_picking::{
-    backends::raycast::RaycastPickable,
-    events::{Down, Pointer},
-    picking_core::Pickable,
-    pointer::PointerButton,
-    prelude::*,
-    PickableBundle,
-};
+
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin, PanOrbitCameraSystemSet};
 use camera_view::CameraViewTabPlugin;
 use space_editor_core::prelude::*;
 
 use bevy::{
-    app::PluginGroupBuilder,
-    input::common_conditions::input_toggle_active,
-    pbr::CascadeShadowConfigBuilder,
-    prelude::*,
-    render::{render_resource::PrimitiveTopology, view::RenderLayers},
-    window::PrimaryWindow,
+    app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, window::PrimaryWindow
 };
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{EguiContext, UiRenderOrder, egui};
 
 use space_editor_tabs::prelude::*;
 
-use game_view::{has_window_changed, GameViewPlugin};
+/*
 use prelude::{
     clean_meshless, reset_camera_viewport, set_camera_viewport, GameModeSettings, GameViewTab,
     MeshlessVisualizerPlugin, SpaceHierarchyPlugin, SpaceInspectorPlugin,
 };
+*/
+
+use prelude::{
+    GameModeSettings,
+    SpaceHierarchyPlugin, SpaceInspectorPlugin,
+};
+
 use space_editor_core::toast::ToastUiPlugin;
 use space_prefab::prelude::*;
 use space_shared::{
@@ -99,6 +89,7 @@ use space_shared::{
     EditorCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache,
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
+use transform_gizmo_bevy::GizmoCamera;
 use ui_registration::BundleReg;
 
 use camera_plugin::*;
@@ -123,13 +114,10 @@ pub mod prelude {
         asset_inspector::*,
         change_chain::*,
         debug_panels::*,
-        game_view::*,
         hierarchy::*,
         inspector::*,
         menu_toolbars::*,
-        meshless_visualizer::*,
         settings::*,
-        tool::*, //tools::*,
         ui_registration::*,
     };
 
@@ -146,12 +134,13 @@ pub mod prelude {
     pub use crate::EditorPlugin;
 
     pub use crate::editor_tab_name::*;
+
+
 }
 
 /// External dependencies for editor crate
 pub mod ext {
     pub use bevy_egui;
-    pub use bevy_mod_picking;
     pub use bevy_panorbit_camera;
     pub use space_shared::ext::*;
 }
@@ -183,12 +172,16 @@ impl PluginGroup for EditorPluginGroup {
             .add(EditorSetsPlugin)
             .add(EditorDefaultBundlesPlugin)
             .add(EditorDefaultCameraPlugin)
-            .add(bevy_egui::EguiPlugin)
-            .add(EventListenerPlugin::<selection::SelectEvent>::default())
+            .add(bevy_egui::EguiPlugin {
+                ui_render_order: UiRenderOrder::EguiAboveBevyUi,
+                bindless_mode_array_size: std::num::NonZero::new(16),
+                enable_multipass_for_primary_context: true,
+            })
+            //.add(EventListenerPlugin::<selection::SelectEvent>::default())
             .add(DefaultInspectorConfigPlugin);
         res = EditorUiPlugin::default().add_plugins_to_group(res);
         res.add(PanOrbitCameraPlugin)
-            .add(selection::EditorPickingPlugin)
+            .add(selection::plugin)
             .add(bevy_debug_grid::DebugGridPlugin::without_floor_grid())
             .add(
                 WorldInspectorPlugin::default()
@@ -267,12 +260,14 @@ fn game_gizmos(mut gizmos_config: ResMut<GizmoConfigStore>) {
     gizmos_config.config_mut::<EditorGizmo>().0.render_layers = RenderLayers::layer(0)
 }
 
+/*
 type AutoAddQueryFilter = (
     Without<PrefabMarker>,
     Without<Pickable>,
     With<Parent>,
     Changed<Handle<Mesh>>,
 );
+*/
 
 #[derive(Default, Reflect, GizmoConfigGroup)]
 pub struct EditorGizmo;
@@ -286,14 +281,14 @@ impl Plugin for EditorGizmoPlugin {
 }
 
 fn save_prefab_before_play(
-    mut editor_events: EventWriter<space_shared::EditorEvent>,
-    mut toast: EventWriter<ToastMessage>,
+    mut editor_events: MessageWriter<space_shared::EditorEvent>,
+    mut toast: MessageWriter<ToastMessage>,
 ) {
-    toast.send(ToastMessage::new(
+    toast.write(ToastMessage::new(
         "Preparing prefab to save for playmode",
         space_shared::toast::ToastKind::Info,
     ));
-    editor_events.send(space_shared::EditorEvent::Save(
+    editor_events.write(space_shared::EditorEvent::Save(
         space_shared::EditorPrefabPath::MemoryCache,
     ));
 }
@@ -336,18 +331,19 @@ pub trait FlatPluginList {
 
 /// This method prepare default lights and camera for editor UI. You can create own conditions for your editor and use this method how example
 pub fn simple_editor_setup(mut commands: Commands) {
-    commands.insert_resource(bevy::pbr::DirectionalLightShadowMap { size: 4096 });
+    commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
+
+    // By default EditorState is Game. Set it to Editor to show editor ui
+    commands.set_state(EditorState::Editor);
+
     // light
     commands.spawn((
-        DirectionalLightBundle {
-            directional_light: DirectionalLight {
-                shadows_enabled: true,
-                ..default()
-            },
-            transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
-            cascade_shadow_config: CascadeShadowConfigBuilder::default().into(),
+        DirectionalLight {
+            shadows_enabled: true,
             ..default()
         },
+        Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+        CascadeShadowConfigBuilder::default().build(),
         Name::from("Editor Level Light"),
     ));
 
@@ -374,29 +370,31 @@ pub fn simple_editor_setup(mut commands: Commands) {
             z: Some(Color::linear_rgb(0.1, 0.1, 0.9)),
         },
         TrackedGrid::default(),
-        TransformBundle::default(),
-        VisibilityBundle::default(),
+        Transform::default(),
+        Visibility::default(),
         Name::from("Debug Grid"),
         grid_render_layer,
     ));
 
     // camera
     commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-            camera: Camera {
-                order: 100,
-                ..default()
-            },
+        Camera3d::default(),
+        Camera {
+            order: 100,
             ..default()
         },
-        bevy_panorbit_camera::PanOrbitCamera::default(),
+        Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        PanOrbitCamera::default(),
         EditorCameraMarker,
-        Name::from("Editor Camera"),
-        PickableBundle::default(),
-        RaycastPickable,
+        Name::from("Main Editor Camera"),
+        //EditorGameViewWorldCameraMarker,
+        GizmoCamera,
+        MeshPickingCamera,
         all_render_layers(),
+        Msaa::Off,
     ));
+
+
 }
 
 pub fn game_mode_changed(
@@ -406,42 +404,37 @@ pub fn game_mode_changed(
 ) {
     if mode.is_changed() {
         for editor_camera in editor_camera_query.iter() {
-            commands.entity(editor_camera).despawn_recursive();
+            commands.entity(editor_camera).despawn();
         }
 
         if mode.is_3d() {
             // 3D camera
             commands.spawn((
-                Camera3dBundle {
-                    transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-                    camera: Camera {
-                        // We had too many editor cameras at order 0
-                        order: 100,
-                        ..default()
-                    },
+                Camera {
+                    // We had too many editor cameras at order 0
+                    order: 100,
                     ..default()
                 },
+                Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
                 bevy_panorbit_camera::PanOrbitCamera::default(),
                 EditorCameraMarker,
                 Name::from("Editor Camera"),
-                PickableBundle::default(),
-                RaycastPickable,
+                //PickableBundle::default(),
+                MeshPickingCamera,
+                //Pickable::default(),
                 all_render_layers(),
             ));
         } else {
             // 2D camera
             commands.spawn((
-                Camera2dBundle {
-                    camera: Camera {
-                        order: 100,
-                        ..default()
-                    },
+                Camera {
+                    order: 100,
                     ..default()
                 },
                 EditorCameraMarker,
                 Name::from("Editor 2D Camera"),
-                PickableBundle::default(),
-                RaycastPickable,
+                //PickableBundle::default(),
+                MeshPickingCamera,
                 all_render_layers(),
             ));
         }

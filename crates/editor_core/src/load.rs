@@ -28,7 +28,7 @@ pub fn load_listener(world: &mut World) {
         }
     }
     let Some(mut editor_loader) = world.get_resource_mut::<EditorLoader>() else {
-        world.send_event(ToastMessage::new(
+        world.write_message(ToastMessage::new(
             "Failed to get prefab loader",
             egui_toast::ToastKind::Error,
         ));
@@ -43,13 +43,13 @@ pub fn load_listener(world: &mut World) {
         .collect();
     for (entity, name) in mark_to_delete {
         let mut despawned = false;
-        if let Some(e) = world.get_entity_mut(entity) {
-            e.despawn_recursive();
+        if let Some(e) = world.get_entity_mut(entity).ok() {
+            e.despawn();
             despawned = true;
         }
 
         if despawned {
-            world.send_event(ToastMessage::new(
+            world.write_message(ToastMessage::new(
                 &if name.is_some() {
                     format!(
                         "Despawning {}: {:?}",
@@ -72,13 +72,13 @@ pub fn load_listener(world: &mut World) {
     let res = prefab.write_to_world(world, &mut map);
     match res {
         Ok(_) => {
-            world.send_event(ToastMessage::new(
+            world.write_message(ToastMessage::new(
                 "Prefab loaded successfully",
                 egui_toast::ToastKind::Success,
             ));
         }
         Err(err) => {
-            world.send_event(ToastMessage::new(
+            world.write_message(ToastMessage::new(
                 &format!("Failed to create scene:\n{err}"),
                 egui_toast::ToastKind::Error,
             ));

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 pub use egui_toast::*;
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct ToastMessage {
     pub text: String,
     pub kind: ToastKind,

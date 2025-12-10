@@ -1,10 +1,9 @@
 use anyhow::Result;
-use bevy::prelude::*;
+use bevy::{asset::RenderAssetUsages, prelude::*};
 
 use crate::gizmos::{
     CAMERA_GIZMO, DIRECTION_LIGHT_GIZMO, POINT_LIGHT_GIZMO, SPOT_LIGHT_GIZMO, UNKNOWN,
 };
-use bevy::render::render_asset::RenderAssetUsages;
 
 pub fn create_camera_image() -> Result<Image> {
     let image = image::load_from_memory_with_format(CAMERA_GIZMO, image::ImageFormat::Png)?;

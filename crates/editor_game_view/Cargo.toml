@@ -1,17 +1,13 @@
 [package]
-name = "space_editor_ui"
+name = "space_editor_game_view"
 version.workspace = true
-authors.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Subcrate for the space_editor crate. Contains the UI for the editor."
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 repository.workspace = true
 homepage.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[features]
-persistence_editor = []
 
 [dependencies]
 bevy.workspace = true
@@ -22,17 +18,14 @@ space_undo.workspace = true
 space_persistence.workspace = true
 space_shared.workspace = true
 space_editor_tabs.workspace = true
+space_editor_ui.workspace = true
 
 serde.workspace = true
 pretty-type-name.workspace = true
-# transform-gizmo-egui.workspace = true
+bevy_egui.workspace = true
 transform-gizmo-bevy.workspace = true
 transform-gizmo-egui.workspace = true
-
-bevy_egui.workspace = true
 egui_dock.workspace = true
-egui_extras.workspace = true
-
 bevy_debug_grid.workspace = true
 bevy-inspector-egui.workspace = true
 bevy_asset_loader.workspace = true

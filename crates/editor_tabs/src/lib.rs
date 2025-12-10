@@ -8,9 +8,9 @@ pub mod tab_viewer;
 
 use std::fmt::Display;
 
-use bevy::{ecs::world::CommandQueue, prelude::*, utils::HashMap, window::PrimaryWindow};
+use bevy::{ecs::{system::ScheduleSystem, world::CommandQueue}, platform::collections::HashMap, prelude::*, window::PrimaryWindow};
 
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{EguiContext, PrimaryEguiContext, egui};
 
 use editor_tab::*;
 use egui_dock::DockArea;
@@ -38,14 +38,15 @@ pub mod prelude {
 /// Will be useful in some specific cases to ad new system before/after this system
 pub fn show_editor_ui(world: &mut World) {
     let Ok(egui_context) = world
-        .query_filtered::<&mut EguiContext, With<PrimaryWindow>>()
-        .get_single(world)
+        .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+        .single(world)
     else {
+        info!("show_editor_ui: no egui context");
         return;
     };
+
     let mut egui_context = egui_context.clone();
-    let ctx = egui_context.get_mut();
-    egui_extras::install_image_loaders(ctx);
+    let ctx: &mut egui::Context = egui_context.get_mut();
 
     // set style for editor
     if let Some(editor_ui) = world.get_resource::<EditorUi>() {
@@ -57,6 +58,8 @@ pub fn show_editor_ui(world: &mut World) {
         world.resource_scope::<EditorUi, _>(|world, mut editor_ui| {
             editor_ui.ui(world, ctx);
         });
+    } else {
+        info!("show_editor_ui: no editor ui");
     }
 }
 
@@ -93,21 +96,37 @@ impl EditorUi {
         for (_surface_index, tab) in self.tree.iter_all_nodes() {
             match tab {
                 egui_dock::Node::Empty => {}
-                egui_dock::Node::Leaf {
-                    rect: _,
-                    viewport: _,
-                    tabs,
-                    active: _,
-                    scroll: _,
-                } => visible.extend(tabs.clone()),
-                egui_dock::Node::Vertical {
+
+                egui_dock::Node::Leaf(leaf) => {
+                    let egui_dock::LeafNode {
+                        rect: _,
+                        viewport: _,
+                        tabs,
+                        active: _,
+                        scroll: _,
+                        collapsed: _,
+                    } = leaf;
+
+                    visible.extend(tabs.clone());
+                }
+
+                egui_dock::Node::Vertical(egui_dock::SplitNode {
                     rect: _,
                     fraction: _,
-                } => {}
-                egui_dock::Node::Horizontal {
+                    collapsed_leaf_count: _,
+                    fully_collapsed: _,
+                }) => {
+                    // nothing
+                }
+
+                egui_dock::Node::Horizontal(egui_dock::SplitNode {
                     rect: _,
                     fraction: _,
-                } => {}
+                    collapsed_leaf_count: _,
+                    fully_collapsed: _,
+                }) => {
+                    // nothing
+                }
             }
         }
 
@@ -186,10 +205,13 @@ pub trait EditorUiAppExt {
     fn editor_tab_by_trait<T>(&mut self, tab: T) -> &mut Self
     where
         T: EditorTab + Resource + Send + Sync + 'static;
-    fn editor_tab<T, N: TabName>(
+    fn editor_tab<
+        Marker, 
+        N: TabName
+    >(
         &mut self,
         tab_name: N,
-        tab_systems: impl IntoSystemConfigs<T>,
+        tab_systems: impl IntoScheduleConfigs<ScheduleSystem, Marker>,
     ) -> &mut Self;
 }
 
@@ -237,10 +259,11 @@ impl EditorUiAppExt for App {
         self
     }
 
-    fn editor_tab<T, N: TabName>(
+    fn editor_tab<Marker, N: TabName>(
         &mut self,
         tab_name: N,
-        tab_systems: impl IntoSystemConfigs<T>,
+        //tab_systems: impl IntoSystemConfigs<T>,
+        tab_systems: impl IntoScheduleConfigs<ScheduleSystem, Marker>,
     ) -> &mut Self {
         let tab_name_holder = TabNameHolder::new(tab_name);
 

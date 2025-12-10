@@ -38,27 +38,30 @@ impl Plugin for BottomMenuPlugin {
 
         app.init_resource::<EditorLoader>();
         app.init_resource::<MenuToolbarState>();
-
+         
         app.add_systems(
-            Update,
+            EguiPrimaryContextPass,
             bottom_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
-                .run_if(in_state(EditorState::Editor).and_then(in_state(ShowEditorUi::Show))),
+                .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
         app.add_systems(
-            Update,
+            EguiPrimaryContextPass,
             top_menu
                 .before(EditorLoadSet)
+                .before(show_editor_ui)
                 .in_set(EditorSet::Editor)
-                .run_if(in_state(EditorState::Editor).and_then(in_state(ShowEditorUi::Show))),
+                .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),
         );
-        app.add_systems(Update, in_game_menu.in_set(EditorSet::Game));
-        app.add_event::<MenuLoadEvent>();
+        
+        app.add_systems(EguiPrimaryContextPass, in_game_menu.in_set(EditorSet::Game).run_if(in_state(EditorState::Game)));
+        app.add_message::<MenuLoadEvent>();
     }
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct MenuLoadEvent {
     pub path: String,
 }
@@ -74,19 +77,21 @@ impl Default for FrameSpeedMultiplier {
 }
 
 fn in_game_menu(
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
     mut smoothed_dt: Local<f32>,
     mut frame_speed_mult: Local<FrameSpeedMultiplier>,
-    mut ctxs: EguiContexts,
     mut state: ResMut<NextState<EditorState>>,
     mut time: ResMut<Time<Virtual>>,
     sizing: Res<Sizing>,
 ) {
+    let ctx = egui_ctx.get_mut();
+
     egui::TopBottomPanel::top("top_gameplay_panel")
         .min_height(&sizing.icon.to_size() + 8.)
-        .show(ctxs.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             let frame_duration = time.delta();
             if !time.is_paused() {
-                *smoothed_dt = (*smoothed_dt).mul_add(0.98, time.delta_seconds() * 0.02);
+                *smoothed_dt = (*smoothed_dt).mul_add(0.98, time.delta_secs() * 0.02);
             }
             let layout = egui::Layout::left_to_right(Align::Center).with_main_align(Align::Center);
             ui.with_layout(layout, |ui| {
@@ -147,33 +152,35 @@ pub struct MenuToolbarState {
     pub save_dialog: Option<egui_file::FileDialog>,
     pub load_dialog: Option<egui_file::FileDialog>,
     pub subscene_dialog: Option<egui_file::FileDialog>,
-    show_toasts: bool,
+    pub show_toasts: bool,
     pub path: String,
 }
 
 pub fn bottom_menu(
     mut commands: Commands,
     query: Query<HierarchyQueryIter, With<PrefabMarker>>,
-    mut ctxs: EguiContexts,
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
     _state: ResMut<NextState<EditorState>>,
-    mut changes: EventWriter<NewChange>,
+    mut changes: MessageWriter<NewChange>,
     mut state: ResMut<HierarchyTabState>,
     ui_reg: Res<BundleReg>,
     menu_state: Res<MenuToolbarState>,
     sizing: Res<Sizing>,
     q_pan_cam: Query<&PanOrbitCamera>,
 ) {
-    let ctx = ctxs.ctx_mut();
+    let ctx = egui_ctx.get_mut();
+
     egui::TopBottomPanel::bottom("bottom_menu")
         .min_height(&sizing.icon.to_size().max(sizing.text) + 4.)
         .show(ctx, |ui| {
-            ui.style_mut().spacing.menu_margin = Margin::symmetric(16., 8.);
-            egui::menu::bar(ui, |ui| {
+            ui.style_mut().spacing.menu_margin = Margin::symmetric(16, 8);
+            egui::MenuBar::new().ui(ui, |ui| {
                 let stl = ui.style_mut();
                 stl.spacing.button_padding = egui::Vec2::new(8., 2.);
 
                 if ui
-                    .add(
+                    .add_sized(
+                        egui::vec2(sizing.icon.to_size(), sizing.icon.to_size()),
                         delete_entity_icon(sizing.icon.to_size(), "")
                             .stroke(stroke_default_color()),
                     )
@@ -181,31 +188,43 @@ pub fn bottom_menu(
                     .clicked()
                 {
                     for (entity, _, _, _parent) in query.iter() {
-                        commands.entity(entity).despawn_recursive();
+                        commands.entity(entity).despawn();
 
-                        changes.send(NewChange {
+                        changes.write(NewChange {
                             change: Arc::new(RemovedEntity { entity }),
                         });
                     }
                 }
+
                 if ui
-                    .add(add_entity_icon(sizing.icon.to_size(), "").stroke(stroke_default_color()))
+                    .add_sized(
+                        egui::vec2(sizing.icon.to_size(), sizing.icon.to_size()),
+                        add_entity_icon(sizing.icon.to_size(), "").stroke(stroke_default_color()),
+                    )
                     .on_hover_text("Add new entity")
                     .clicked()
                 {
                     let id = commands.spawn_empty().insert(PrefabMarker).id();
-                    changes.send(NewChange {
+                    changes.write(NewChange {
                         change: Arc::new(AddedEntity { entity: id }),
                     });
                 }
-                let spawnable_button =
-                    add_bundle_icon(sizing.icon.to_size(), "").stroke(stroke_default_color());
 
-                let spawnables = ui.add(if state.show_spawnable_bundles {
-                    spawnable_button.fill(SELECTED_ITEM_COLOR)
-                } else {
-                    spawnable_button
-                });
+                let spawnable_button = add_bundle_icon(sizing.icon.to_size(), "")
+                    .stroke(stroke_default_color())
+                    .min_size(egui::Vec2::new(
+                        sizing.icon.to_size(),
+                        sizing.icon.to_size(),
+                    ));
+
+                let spawnables = ui.add_sized(
+                    egui::vec2(sizing.icon.to_size(), sizing.icon.to_size()),
+                    if state.show_spawnable_bundles {
+                        spawnable_button.fill(SELECTED_ITEM_COLOR)
+                    } else {
+                        spawnable_button
+                    },
+                );
                 let spawnable_pos = Pos2 {
                     x: 16.,
                     y: spawnables.rect.right_top().y - 4.,
@@ -220,9 +239,9 @@ pub fn bottom_menu(
                 if state.show_spawnable_bundles {
                     egui::Window::new("Bundles")
                         .frame(
-                            egui::Frame::none()
-                                .inner_margin(Margin::symmetric(8., 4.))
-                                .rounding(3.)
+                            egui::Frame::new()
+                                .inner_margin(Margin::symmetric(8, 4))
+                                .corner_radius(3.)
                                 .stroke(stroke_default_color())
                                 .fill(SPECIAL_BG_COLOR),
                         )
@@ -232,7 +251,7 @@ pub fn bottom_menu(
                         .default_size(egui::Vec2::new(80., 80.))
                         .title_bar(false)
                         .show(ctx, |ui| {
-                            egui::menu::bar(ui, |ui| {
+                            egui::MenuBar::new().ui(ui, |ui| {
                                 ui.spacing();
                                 for (category_name, category_bundle) in ui_reg.bundles.iter() {
                                     ui.menu_button(category_name, |ui| {
@@ -246,16 +265,13 @@ pub fn bottom_menu(
                                             let button = egui::Button::new(name).ui(ui);
                                             if button.clicked() {
                                                 let entity = dyn_bundle.spawn(&mut commands);
-                                                if let Ok(pan_cam) = q_pan_cam.get_single() {
-                                                    commands.entity(entity).insert(
-                                                        SpatialBundle::from_transform(
-                                                            Transform::from_translation(
-                                                                pan_cam.focus,
-                                                            ),
-                                                        ),
-                                                    );
+                                                if let Ok(pan_cam) = q_pan_cam.single() {
+                                                    commands.entity(entity).insert((
+                                                        Transform::from_translation(pan_cam.focus),
+                                                        Visibility::default(),
+                                                    ));
                                                 }
-                                                changes.send(NewChange {
+                                                changes.write(NewChange {
                                                     change: Arc::new(AddedEntity { entity }),
                                                 });
                                             }
@@ -287,22 +303,24 @@ pub fn bottom_menu(
 
 pub fn top_menu(
     mut commands: Commands,
-    mut ctxs: EguiContexts,
+    mut egui_ctx: Single<&mut EguiContext, With<PrimaryEguiContext>>,
     _state: ResMut<NextState<EditorState>>,
-    mut events: EventReader<MenuLoadEvent>,
+    mut events: MessageReader<MenuLoadEvent>,
     mut menu_state: ResMut<MenuToolbarState>,
-    mut editor_events: EventWriter<EditorEvent>,
-    mut clear_toast: EventWriter<ClearToastMessage>,
+    mut editor_events: MessageWriter<EditorEvent>,
+    mut clear_toast: MessageWriter<ClearToastMessage>,
     background_tasks: Res<BackgroundTaskStorage>,
     toasts: Res<ToastStorage>,
     sizing: Res<Sizing>,
 ) {
-    let ctx = ctxs.ctx_mut();
+
+    let ctx = egui_ctx.get_mut();
+
     egui::TopBottomPanel::top("top_menu_bar")
         .min_height(&sizing.icon.to_size() + 8.)
         .show(ctx, |ui| {
-            ui.style_mut().spacing.menu_margin = Margin::symmetric(16., 8.);
-            egui::menu::bar(ui, |ui| {
+            ui.style_mut().spacing.menu_margin = Margin::symmetric(16, 8);
+            egui::MenuBar::new().ui(ui, |ui| {
                 let stl = ui.style_mut();
                 stl.spacing.button_padding = egui::Vec2::new(8., 4.);
 
@@ -329,7 +347,7 @@ pub fn top_menu(
                                 //remove .scn.ron
                                 path = path.replace(".scn.ron", "");
                                 menu_state.path = path;
-                                editor_events.send(EditorEvent::Load(EditorPrefabPath::File(
+                                editor_events.write(EditorEvent::Load(EditorPrefabPath::File(
                                     format!("{}.scn.ron", menu_state.path.clone()),
                                 )));
                             }
@@ -374,7 +392,7 @@ pub fn top_menu(
                             if path.ends_with(".scn.ron") {
                                 let path = path.replace(".scn.ron", "");
                                 println!("{path}");
-                                editor_events.send(EditorEvent::Save(EditorPrefabPath::File(
+                                editor_events.write(EditorEvent::Save(EditorPrefabPath::File(
                                     format!("{}.scn.ron", path),
                                 )));
                             }
@@ -422,7 +440,7 @@ pub fn top_menu(
                                 //remove .scn.ron
                                 path = path.replace(".scn.ron", "");
                                 menu_state.path = path;
-                                editor_events.send(EditorEvent::Load(EditorPrefabPath::File(
+                                editor_events.write(EditorEvent::Load(EditorPrefabPath::File(
                                     format!("{}.scn.ron", menu_state.path.clone()),
                                 )));
                             }
@@ -469,7 +487,10 @@ pub fn top_menu(
                             if path.starts_with("assets/") {
                                 path = path.replace("assets/", "");
 
-                                editor_events.send(EditorEvent::LoadGltfAsPrefab(path));
+                                editor_events.write(EditorEvent::LoadGltfAsPrefab{
+                                    path: path,
+                                    parent: None,
+                                });
                             }
                         }
                     } else {
@@ -522,7 +543,8 @@ pub fn top_menu(
                                     commands.spawn((PrefabBundle::new(&path), PrefabMarker));
                                 } else if path.ends_with(".gltf") || path.ends_with(".glb") {
                                     commands.spawn((
-                                        SpatialBundle::default(),
+                                        Visibility::default(),
+                                        Transform::default(),
                                         GltfPrefab {
                                             path,
                                             scene: "Scene0".into(),
@@ -548,7 +570,7 @@ pub fn top_menu(
                             color: STROKE_COLOR,
                         });
                 if ui.add(play_button).clicked() {
-                    editor_events.send(EditorEvent::StartGame);
+                    editor_events.write(EditorEvent::StartGame);
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
@@ -562,7 +584,7 @@ pub fn top_menu(
                             .show(ctx, |ui| {
                                 ui.vertical_centered_justified(|ui| {
                                     if ui.add(egui::Button::new("Clear all 🗑")).clicked() {
-                                        clear_toast.send(ClearToastMessage::all());
+                                        clear_toast.write(ClearToastMessage::all());
                                     };
                                 });
                                 egui::Grid::new("error_console_log").show(ui, |ui| {
@@ -572,7 +594,7 @@ pub fn top_menu(
                                         ui.label(RichText::new("ERROR").color(ERROR_COLOR));
                                         ui.label(error);
                                         if ui.button("🗙").clicked() {
-                                            clear_toast.send(ClearToastMessage::error(index));
+                                            clear_toast.write(ClearToastMessage::error(index));
                                         }
                                         ui.end_row();
                                     }
@@ -582,7 +604,7 @@ pub fn top_menu(
                                         ui.label(RichText::new("WARN ").color(WARN_COLOR));
                                         ui.label(warning);
                                         if ui.button("🗙").clicked() {
-                                            clear_toast.send(ClearToastMessage::warn(index));
+                                            clear_toast.write(ClearToastMessage::warn(index));
                                         }
                                         ui.end_row();
                                     }
@@ -633,7 +655,7 @@ pub fn top_menu(
 
     for event in events.read() {
         menu_state.path.clone_from(&event.path);
-        editor_events.send(EditorEvent::Load(EditorPrefabPath::File(format!(
+        editor_events.write(EditorEvent::Load(EditorPrefabPath::File(format!(
             "{}.scn.ron",
             menu_state.path.clone()
         ))));
