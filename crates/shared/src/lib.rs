@@ -27,6 +27,10 @@ pub struct PrefabMarker;
 #[reflect(Component)]
 pub struct EditorCameraMarker;
 
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component)]
+pub struct EditorGameViewWorldCameraMarker;
+
 /// Editor states (`Editor`, `GamePrepare`, `Game`)
 #[derive(States, Default, Debug, Clone, Hash, Eq, PartialEq)]
 pub enum EditorState {

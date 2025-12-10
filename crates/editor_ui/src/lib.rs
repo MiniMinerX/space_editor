@@ -63,9 +63,9 @@ use camera_view::CameraViewTabPlugin;
 use space_editor_core::prelude::*;
 
 use bevy::{
-    app::PluginGroupBuilder, camera::visibility::RenderLayers, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, window::PrimaryWindow
+    app::PluginGroupBuilder, camera::{CameraOutputMode, visibility::RenderLayers}, input::common_conditions::input_toggle_active, light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap}, prelude::*, render::render_resource::BlendState, window::PrimaryWindow
 };
-use bevy_egui::{EguiContext, UiRenderOrder, egui};
+use bevy_egui::{EguiContext, EguiGlobalSettings, PrimaryEguiContext, UiRenderOrder, egui};
 
 use space_editor_tabs::prelude::*;
 
@@ -84,9 +84,7 @@ use prelude::{
 use space_editor_core::toast::ToastUiPlugin;
 use space_prefab::prelude::*;
 use space_shared::{
-    ext::bevy_inspector_egui::{quick::WorldInspectorPlugin, DefaultInspectorConfigPlugin},
-    toast::ToastMessage,
-    EditorCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache,
+    EditorCameraMarker, EditorGameViewWorldCameraMarker, EditorSet, EditorState, PrefabMarker, PrefabMemoryCache, ext::bevy_inspector_egui::{DefaultInspectorConfigPlugin, quick::WorldInspectorPlugin}, toast::ToastMessage
 };
 use space_undo::{SyncUndoMarkersPlugin, UndoPlugin, UndoSet};
 use transform_gizmo_bevy::GizmoCamera;
@@ -330,7 +328,12 @@ pub trait FlatPluginList {
 }
 
 /// This method prepare default lights and camera for editor UI. You can create own conditions for your editor and use this method how example
-pub fn simple_editor_setup(mut commands: Commands) {
+pub fn simple_editor_setup(
+    mut commands: Commands,
+    mut egui_global_settings: ResMut<EguiGlobalSettings>,
+
+) {
+    egui_global_settings.auto_create_primary_context = false;
     commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
 
     // By default EditorState is Game. Set it to Editor to show editor ui
@@ -376,6 +379,26 @@ pub fn simple_editor_setup(mut commands: Commands) {
         grid_render_layer,
     ));
 
+    commands.spawn((
+        Name::from("Editor Egui Ui Camera"),
+        Camera {
+            order: 101,
+            output_mode: CameraOutputMode::Write {
+                blend_state: Some(BlendState::ALPHA_BLENDING),
+                clear_color: ClearColorConfig::None,
+            },
+            clear_color: ClearColorConfig::Custom(Color::NONE),
+            ..default()
+        },
+        // Cannot be a 2d cam or msaa causes issues
+        Camera3d::default(),
+        PrimaryEguiContext,
+        EditorCameraMarker,
+        // Set random render layer so egui 3d cam does minimal work
+        RenderLayers::from_layers(&[10000]),  
+        Msaa::Off,
+    ));
+
     // camera
     commands.spawn((
         Camera3d::default(),
@@ -387,7 +410,7 @@ pub fn simple_editor_setup(mut commands: Commands) {
         PanOrbitCamera::default(),
         EditorCameraMarker,
         Name::from("Main Editor Camera"),
-        //EditorGameViewWorldCameraMarker,
+        EditorGameViewWorldCameraMarker,
         GizmoCamera,
         MeshPickingCamera,
         all_render_layers(),

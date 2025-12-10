@@ -114,7 +114,7 @@ impl Plugin for EditorUiCore {
         app.init_resource::<EditorUi>();
 
         app.configure_sets(
-            Update,
+            EguiPrimaryContextPass,
             UiSystemSet
                 .in_set(EditorSet::Editor)
                 .run_if(in_state(EditorState::Editor).and(in_state(ShowEditorUi::Show))),

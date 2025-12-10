@@ -20,7 +20,7 @@ impl Plugin for ToastBasePlugin {
         app.init_resource::<ToastStorage>()
             .add_message::<ToastMessage>()
             .add_message::<ClearToastMessage>()
-            .add_systems(Update, read_toast)
+            .add_systems(EguiPrimaryContextPass, read_toast)
             .add_systems(PostUpdate, clear_toasts);
     }
 }
