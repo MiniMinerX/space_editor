@@ -26,14 +26,8 @@ pub struct CameraViewTabPlugin;
 impl Plugin for CameraViewTabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
-        use bevy::transform::plugins::TransformSystem;
-
         app.editor_tab_by_trait(CameraViewTab::default());
-        app.add_systems(PostUpdate, 
-            set_camera_viewport
-            .after(TransformSystems::Propagate)
-            .in_set(EditorSet::Editor)
-        );
+        app.add_systems(PreUpdate, set_camera_viewport.in_set(EditorSet::Editor));
         app.add_systems(OnEnter(EditorState::Game), clean_camera_view_tab);
     }
 }
