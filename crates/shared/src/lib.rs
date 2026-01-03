@@ -8,7 +8,7 @@ pub mod ext {
 pub mod prelude {
     pub use crate::{
         EditorCameraMarker, EditorEvent, EditorPrefabPath, EditorSet, EditorState, PrefabMarker,
-        PrefabMemoryCache, SelectParent, EditorGameViewWorldCameraMarker,
+        PrefabMemoryCache, SelectParent, EditorGameViewWorldCameraMarker, 
     };
 }
  
@@ -30,6 +30,10 @@ pub struct EditorCameraMarker;
 #[derive(Component, Default, Clone, Reflect)]
 #[reflect(Component)]
 pub struct EditorGameViewWorldCameraMarker;
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct EditorCameraViewTabCamera;
 
 /// Editor states (`Editor`, `GamePrepare`, `Game`)
 #[derive(States, Default, Debug, Clone, Hash, Eq, PartialEq)]
