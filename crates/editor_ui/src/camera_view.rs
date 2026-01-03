@@ -201,8 +201,6 @@ impl EditorTab for CameraViewTab {
         // Moves camera below the selection
         let pos = ui.next_widget_position();
         let mut clipped = ui.clip_rect();
-        clipped.set_left(pos.x);
-        clipped.set_top(pos.y);
         self.viewport_rect = Some(clipped);
 
         let mut need_recreate_texture = false;
