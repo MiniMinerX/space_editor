@@ -73,6 +73,10 @@ fn create_camera_image(width: u32, height: u32) -> Image {
 
 impl EditorTab for CameraViewTab {
     fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
+        ui.style_mut().visuals.panel_fill = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.window_fill = egui::Color32::TRANSPARENT;
+        ui.style_mut().visuals.extreme_bg_color = egui::Color32::TRANSPARENT;
+
         if self.preview_camera.is_none() {
             if world
                 .get_resource::<GameModeSettings>()
