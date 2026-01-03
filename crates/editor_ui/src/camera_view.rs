@@ -102,7 +102,7 @@ impl EditorTab for CameraViewTab {
                                 Camera {
                                     is_active: true,
                                     order: 99,
-                                    clear_color: ClearColorConfig::None,
+                                    clear_color: ClearColorConfig::Default,
                                     ..default()
                                 },
                                 RenderLayers::layer(0),
