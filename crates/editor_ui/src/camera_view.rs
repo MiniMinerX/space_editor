@@ -14,7 +14,7 @@ use space_prefab::component::PlaymodeCamera;
 use space_shared::{toast::ToastMessage, *};
 
 use crate::{
-    editor_tab_name::EditorTabName, prelude::GameModeSettings, DisableCameraSkip, RenderLayers,
+    DisableCameraSkip, RenderLayers, editor_tab_name::EditorTabName, prelude::GameModeSettings, ui_picking::NonUIAreas
 };
 
 use space_editor_tabs::prelude::*;
@@ -26,8 +26,15 @@ pub struct CameraViewTabPlugin;
 impl Plugin for CameraViewTabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
+        use bevy_egui::EguiPrimaryContextPass;
+        app.add_systems(
+            EguiPrimaryContextPass,
+            set_camera_view_non_ui_area
+                .before(set_camera_viewport)
+                .in_set(EditorSet::Editor),
+        );
         app.editor_tab_by_trait(CameraViewTab::default());
-        app.add_systems(PreUpdate, set_camera_viewport.in_set(EditorSet::Editor));
+        app.add_systems(EguiPrimaryContextPass, set_camera_viewport.in_set(EditorSet::Editor));
         app.add_systems(OnEnter(EditorState::Game), clean_camera_view_tab);
     }
 }
@@ -88,8 +95,8 @@ impl EditorTab for CameraViewTab {
                             Camera3d::default(),
                             Camera {
                                 is_active: true,
-                                order: 2,
-                                clear_color: ClearColorConfig::Default,
+                                order: 99,
+                                clear_color: ClearColorConfig::None,
                                 ..default()
                             },
                             RenderLayers::layer(0),
@@ -273,4 +280,13 @@ fn set_camera_viewport(
         physical_size: UVec2::new(size.x as u32, size.y as u32),
         depth: 0.0..1.0,
     });
+}
+
+fn set_camera_view_non_ui_area(
+    mut non_ui_areas: ResMut<NonUIAreas>,
+    cam_view: Res<CameraViewTab>,
+) {
+    if let Some(rect) = cam_view.viewport_rect {
+        non_ui_areas.areas.push(rect);
+    }
 }
