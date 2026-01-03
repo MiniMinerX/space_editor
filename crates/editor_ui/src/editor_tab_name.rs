@@ -17,7 +17,7 @@ pub enum EditorTabName {
 
 impl TabName for EditorTabName {
     fn clear_background(&self) -> bool {
-        *self != Self::GameView
+        *self == Self::CameraView || *self == Self::GameView
     }
 
     fn title(&self) -> String {

@@ -27,11 +27,13 @@ impl Plugin for CameraViewTabPlugin {
     #[cfg(not(tarpaulin_include))]
     fn build(&self, app: &mut App) {
         use bevy_egui::EguiPrimaryContextPass;
+
+        use crate::ui_picking::UpdateNonUIAreas;
         app.add_systems(
             EguiPrimaryContextPass,
             set_camera_view_non_ui_area
                 .before(set_camera_viewport)
-                .in_set(EditorSet::Editor),
+                .in_set(UpdateNonUIAreas),
         );
         app.editor_tab_by_trait(CameraViewTab::default());
         app.add_systems(EguiPrimaryContextPass, set_camera_viewport.in_set(EditorSet::Editor));
