@@ -38,7 +38,10 @@ impl Plugin for MinimalGameViewPlugin {
 
 
         app.add_systems(EguiPrimaryContextPass, 
-            set_non_ui_areas.before(set_camera_viewport).in_set(EditorSet::Editor)
+            set_non_ui_areas
+            .before(set_camera_viewport)
+            .before(show_editor_ui)
+            .in_set(EditorSet::Editor)
         );
 
         app.add_systems(
