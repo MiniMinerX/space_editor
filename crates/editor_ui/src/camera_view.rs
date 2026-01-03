@@ -32,16 +32,18 @@ impl Plugin for CameraViewTabPlugin {
     }
 }
 
-/// Tab for camera view in editor
 #[derive(Resource, Default)]
 pub struct CameraViewTab {
+    /// egui rect in window space
     pub viewport_rect: Option<egui::Rect>,
+
+    /// Which scene camera we are previewing
     pub camera_entity: Option<Entity>,
-    pub real_camera: Option<Entity>,
-    pub target_image: Option<Handle<Image>>,
-    pub egui_tex_id: Option<(egui::TextureId, Handle<Image>)>,
-    pub need_reinit_egui_tex: bool,
+
+    /// The actual world camera rendering into the viewport
+    pub preview_camera: Option<Entity>,
 }
+
 
 fn create_camera_image(width: u32, height: u32) -> Image {
     let size = Extent3d {
@@ -71,12 +73,12 @@ fn create_camera_image(width: u32, height: u32) -> Image {
 
 impl EditorTab for CameraViewTab {
     fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
-        if self.real_camera.is_none() {
+        if self.preview_camera.is_none() {
             if world
                 .get_resource::<GameModeSettings>()
                 .map_or(false, |mode| mode.is_3d())
             {
-                self.real_camera = Some(
+                self.preview_camera = Some(
                     commands
                         .spawn((
                             Camera3d::default(),
@@ -98,7 +100,7 @@ impl EditorTab for CameraViewTab {
                 .get_resource::<GameModeSettings>()
                 .map_or(false, |mode| mode.is_2d())
             {
-                self.real_camera = Some(
+                self.preview_camera = Some(
                     commands
                         .spawn((
                             Camera2d::default(),
@@ -193,69 +195,6 @@ impl EditorTab for CameraViewTab {
         self.viewport_rect = Some(clipped);
 
         let mut need_recreate_texture = false;
-
-        if self.target_image.is_none() {
-            let Some(handle) = world.get_resource_mut::<Assets<Image>>().map(|mut assets| {
-                assets.add(create_camera_image(
-                    clipped.width() as u32,
-                    clipped.height() as u32,
-                ))
-            }) else {
-                world.write_message(ToastMessage::new(
-                    "No camera image target found.",
-                    toast::ToastKind::Error,
-                ));
-                return;
-            };
-            self.target_image = Some(handle);
-            self.need_reinit_egui_tex = true;
-            let msg = format!(
-                "Camera target created. W: {}, H: {}",
-                clipped.width(),
-                clipped.height()
-            );
-            world.write_message(ToastMessage::new(&msg, toast::ToastKind::Success));
-        } else if let Some(handle) = &self.target_image {
-            if let Some(image) = world
-                .get_resource::<Assets<Image>>()
-                .and_then(|asset| asset.get(handle))
-            {
-                if image.texture_descriptor.size.width != clipped.width() as u32
-                    || image.texture_descriptor.size.height != clipped.height() as u32
-                {
-                    need_recreate_texture = true;
-                    self.need_reinit_egui_tex = true;
-                }
-            } else {
-                self.target_image = None;
-                self.need_reinit_egui_tex = true;
-            }
-        }
-
-        if need_recreate_texture {
-            let Some(handle) = world.get_resource_mut::<Assets<Image>>().map(|mut assets| {
-                assets.add(create_camera_image(
-                    clipped.width() as u32,
-                    clipped.height() as u32,
-                ))
-            }) else {
-                world.write_message(ToastMessage::new(
-                    "No camera image target found.",
-                    toast::ToastKind::Error,
-                ));
-                return;
-            };
-
-            self.target_image = Some(handle);
-            self.need_reinit_egui_tex = true;
-        }
-
-        if let Some((cam_image, _)) = self.egui_tex_id {
-            ui.image(egui::load::SizedTexture {
-                id: cam_image,
-                size: ui.available_size(),
-            });
-        }
     }
 
     fn tab_name(&self) -> space_editor_tabs::tab_name::TabNameHolder {
@@ -267,7 +206,7 @@ fn clean_camera_view_tab(
     mut ui_state: ResMut<CameraViewTab>,
     mut cameras: Query<(&mut Camera, &mut GlobalTransform) /*, Without<EditorCameraMarker> */ >,
 ) {
-    let Some(real_cam_entity) = ui_state.real_camera else {
+    let Some(real_cam_entity) = ui_state.preview_camera else {
         return;
     };
 
@@ -279,7 +218,7 @@ fn clean_camera_view_tab(
     real_cam.viewport = None;
 
     ui_state.camera_entity = None;
-    ui_state.real_camera = None;
+    ui_state.preview_camera = None;
     ui_state.viewport_rect = None;
 
     info!("Clean camera view tab successful");
@@ -290,112 +229,44 @@ struct LastCamTabRect(Option<egui::Rect>);
 
 fn set_camera_viewport(
     mut local: Local<LastCamTabRect>,
-    mut ui_state: ResMut<CameraViewTab>,
-    primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut cameras: Query<
-        (&mut Camera, &mut GlobalTransform, &mut Transform),
-        //Without<EditorCameraMarker>,
-    >,
-    mut ctxs: EguiContexts,
-    images: Res<Assets<Image>>,
+    ui_state: Res<CameraViewTab>,
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    mut cameras: Query<&mut Camera>,
 ) {
-    let Some(real_cam_entity) = ui_state.real_camera else {
-        return;
-    };
-
-    let Some(camera_entity) = ui_state.camera_entity else {
-        return;
-    };
-
-    let Some(target_image) = ui_state.target_image.clone() else {
-        return;
-    };
-
-    if ui_state.egui_tex_id.is_none() {
-        ui_state.target_image = Some(target_image.clone());
-        ui_state.egui_tex_id = Some((ctxs.add_image(EguiTextureHandle::Strong(target_image.clone())), target_image.clone()));
-    }
-
-    if let (Some((_tx_id, handle)), true) = (&ui_state.egui_tex_id, ui_state.need_reinit_egui_tex) {
-        ctxs.remove_image(handle);
-        ui_state.egui_tex_id = Some((ctxs.add_image(EguiTextureHandle::Strong(target_image.clone())), target_image));
-        ui_state.need_reinit_egui_tex = false;
-    }
-
-    let Ok([(mut real_cam, _, mut real_cam_local_transform), (watch_cam, camera_transform, _)]) =
-        cameras.get_many_mut([real_cam_entity, camera_entity])
-    else {
-        if let Ok((mut real_cam, _, _)) = cameras.get_mut(real_cam_entity) {
-            real_cam.is_active = false;
-            ui_state.camera_entity = None;
-        }
-        return;
-    };
-
-    let Ok(_) = primary_window.single() else {
-        return;
-    };
+    let Ok(window) = primary_window.single() else { return };
 
     let Some(viewport_rect) = ui_state.viewport_rect else {
         local.0 = None;
-        warn!("No viewport rect for UI");
         return;
     };
 
-    if watch_cam.is_changed() {
-        *real_cam = watch_cam.clone();
+    // Avoid redundant writes
+    if local.0 == Some(viewport_rect) {
+        return;
     }
-    // set editor params for real_cam
-    real_cam.is_active = true;
-    let Some(target_handle) = ui_state.target_image.clone() else {
-        return;
-    };
-    real_cam.target = RenderTarget::Image(target_handle.clone().into());
-
-    *real_cam_local_transform = camera_transform.compute_transform();
-
     local.0 = Some(viewport_rect);
 
-    let Some(image_data) = images.get(target_handle.id()) else {
-        error!("Could not get image data");
-        return;
-    };
+    let Some(cam_entity) = ui_state.preview_camera else { return };
+    let Ok(mut cam) = cameras.get_mut(cam_entity) else { return };
 
-    let image_rect = Rect::new(
-        0.0,
-        0.0,
-        image_data.texture_descriptor.size.width as f32 - 10.0,
-        image_data.texture_descriptor.size.height as f32 - 10.0,
-    );
+    let scale = window.scale_factor();
+    let mut pos = viewport_rect.left_top().to_vec2() * scale;
+    let mut size = viewport_rect.size() * scale;
 
-    let cam_aspect_ratio = watch_cam
-        .logical_viewport_size()
-        .map(|cam| cam.y as f64 / cam.x as f64);
+    // Clamp to window
+    pos.x = pos.x.max(0.0);
+    pos.y = pos.y.max(0.0);
 
-    let mut preferred_height = image_rect.height();
-    let mut preferred_width = image_rect.width();
+    let max_w = window.width() * scale - pos.x - 1.0;
+    let max_h = window.height() * scale - pos.y - 1.0;
 
-    // Fixes camera viewport size to be proportional to main watch camera
-    if let Some(ratio) = cam_aspect_ratio {
-        preferred_height = image_rect.size().x * ratio as f32;
-    }
+    size.x = size.x.min(max_w).max(1.0);
+    size.y = size.y.min(max_h).max(1.0);
 
-    preferred_width = preferred_width.min(image_rect.size().x);
-    preferred_height = preferred_height.min(image_rect.size().y);
-
-    let view_image_rect = Rect::from_center_half_size(
-        Vec2::new(image_rect.center().x, image_rect.center().y),
-        Vec2::new(preferred_width, preferred_height) / 2.0,
-    );
-
-    let new_viewport = Some(Viewport {
-        physical_position: UVec2::new(view_image_rect.min.x as u32, view_image_rect.min.y as u32),
-        physical_size: UVec2::new(
-            view_image_rect.size().x as u32,
-            view_image_rect.size().y as u32,
-        ),
+    cam.is_active = true;
+    cam.viewport = Some(Viewport {
+        physical_position: UVec2::new(pos.x as u32, pos.y as u32),
+        physical_size: UVec2::new(size.x as u32, size.y as u32),
         depth: 0.0..1.0,
     });
-
-    real_cam.viewport = new_viewport;
 }
