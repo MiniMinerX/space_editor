@@ -80,130 +80,128 @@ fn create_camera_image(width: u32, height: u32) -> Image {
 
 impl EditorTab for CameraViewTab {
     fn ui(&mut self, ui: &mut bevy_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
-        ui.style_mut().visuals.panel_fill = egui::Color32::TRANSPARENT;
-        ui.style_mut().visuals.window_fill = egui::Color32::TRANSPARENT;
-        ui.style_mut().visuals.extreme_bg_color = egui::Color32::TRANSPARENT;
-
-        if self.preview_camera.is_none() {
-            if world
-                .get_resource::<GameModeSettings>()
-                .map_or(false, |mode| mode.is_3d())
-            {
-                self.preview_camera = Some(
-                    commands
-                        .spawn((
-                            Camera3d::default(),
-                            Camera {
-                                is_active: true,
-                                order: 99,
-                                clear_color: ClearColorConfig::None,
-                                ..default()
-                            },
-                            RenderLayers::layer(0),
-                            TemporalJitter::default(),
-                            Name::new("Camera for Camera view tab"),
-                            DisableCameraSkip,
-                            EditorCameraViewTabCamera,
-                        ))
-                        .id(),
-                );
-            } else if world
-                .get_resource::<GameModeSettings>()
-                .map_or(false, |mode| mode.is_2d())
-            {
-                self.preview_camera = Some(
-                    commands
-                        .spawn((
-                            Camera2d::default(),
-                            Camera {
-                                is_active: false,
-                                order: 2,
-                                clear_color: ClearColorConfig::Default,
-                                ..default()
-                            },
-                            RenderLayers::layer(0),
-                            Name::new("Camera for Camera view tab"),
-                            DisableCameraSkip,
-                            EditorCameraViewTabCamera,
-                        ))
-                        .id(),
-                );
+        ui.horizontal(|ui| {
+            if self.preview_camera.is_none() {
+                if world
+                    .get_resource::<GameModeSettings>()
+                    .map_or(false, |mode| mode.is_3d())
+                {
+                    self.preview_camera = Some(
+                        commands
+                            .spawn((
+                                Camera3d::default(),
+                                Camera {
+                                    is_active: true,
+                                    order: 99,
+                                    clear_color: ClearColorConfig::None,
+                                    ..default()
+                                },
+                                RenderLayers::layer(0),
+                                TemporalJitter::default(),
+                                Name::new("Camera for Camera view tab"),
+                                DisableCameraSkip,
+                                EditorCameraViewTabCamera,
+                            ))
+                            .id(),
+                    );
+                } else if world
+                    .get_resource::<GameModeSettings>()
+                    .map_or(false, |mode| mode.is_2d())
+                {
+                    self.preview_camera = Some(
+                        commands
+                            .spawn((
+                                Camera2d::default(),
+                                Camera {
+                                    is_active: false,
+                                    order: 99,
+                                    clear_color: ClearColorConfig::Default,
+                                    ..default()
+                                },
+                                RenderLayers::layer(0),
+                                Name::new("Camera for Camera view tab"),
+                                DisableCameraSkip,
+                                EditorCameraViewTabCamera,
+                            ))
+                            .id(),
+                    );
+                }
             }
-        }
 
-        let mut camera_query = world.query_filtered::<Entity, (
-            With<Camera>,
-            With<PlaymodeCamera>,
-            //Without<EditorCameraMarker>,
-        )>();
+            let mut camera_query = world.query_filtered::<Entity, (
+                With<Camera>,
+                With<PlaymodeCamera>,
+                //Without<EditorCameraMarker>,
+            )>();
 
-        if camera_query.iter(world).count() == 1 {
-            let selected_entity = camera_query.iter(world).next();
-            self.camera_entity = selected_entity;
+            if camera_query.iter(world).count() == 1 {
+                let selected_entity = camera_query.iter(world).next();
+                self.camera_entity = selected_entity;
 
-            if let Some(entity) = selected_entity {
-                ui.label(format!("Camera: {:?}", entity));
-            } else {
-                ui.label(RichText::new("No selected Camera").color(ERROR_COLOR));
-            }
-        } else if camera_query.iter(world).count() > 0 {
-            egui::ComboBox::from_label("Camera")
-                .selected_text(format!("{:?}", self.camera_entity))
-                .show_ui(ui, |ui| {
-                    for entity in camera_query.iter(world) {
-                        ui.selectable_value(
-                            &mut self.camera_entity,
-                            Some(entity),
-                            format!("{:?}", entity),
-                        );
-                    }
-                });
-            ui.spacing();
-            ui.separator();
-        } else {
-            ui.label(egui::RichText::new("No available Cameras").color(ERROR_COLOR));
-
-            ui.spacing();
-            ui.separator();
-            ui.spacing();
-            if world
-                .get_resource::<GameModeSettings>()
-                .map_or(false, |mode| mode.is_3d())
-            {
+                if let Some(entity) = selected_entity {
+                    ui.label(format!("Camera: {:?}", entity));
+                } else {
+                    ui.label(RichText::new("No selected Camera").color(ERROR_COLOR));
+                }
+            } else if camera_query.iter(world).count() > 0 {
+                egui::ComboBox::from_label("Camera")
+                    .selected_text(format!("{:?}", self.camera_entity))
+                    .show_ui(ui, |ui| {
+                        for entity in camera_query.iter(world) {
+                            ui.selectable_value(
+                                &mut self.camera_entity,
+                                Some(entity),
+                                format!("{:?}", entity),
+                            );
+                        }
+                    });
                 ui.spacing();
-                if ui.button("Add 3D Playmode Camera").clicked() {
+                ui.separator();
+            } else {
+                ui.label(egui::RichText::new("No available Cameras").color(ERROR_COLOR));
+
+                ui.spacing();
+                ui.separator();
+                ui.spacing();
+                if world
+                    .get_resource::<GameModeSettings>()
+                    .map_or(false, |mode| mode.is_3d())
+                {
+                    ui.spacing();
+                    if ui.button("Add 3D Playmode Camera").clicked() {
+                        commands.spawn((
+                            Camera3d::default(),
+                            Camera::default(),
+                            DebandDither::Enabled,
+                            Projection::Perspective(PerspectiveProjection::default()),
+                            Name::new("Camera3d".to_string()),
+                            Transform::default(),
+                            Visibility::default(),
+                            PlaymodeCamera::default(),
+                            PrefabMarker,
+                            CameraRenderGraph::new(bevy::core_pipeline::core_3d::graph::Core3d),
+                        ));
+                    }
+                } else if ui.button("Add 2D Playmode Camera").clicked() {
                     commands.spawn((
-                        Camera3d::default(),
-                        Camera::default(),
-                        DebandDither::Enabled,
-                        Projection::Perspective(PerspectiveProjection::default()),
-                        Name::new("Camera3d".to_string()),
+                        Camera2d {},
+                        Name::new("Camera2d".to_string()),
                         Transform::default(),
                         Visibility::default(),
                         PlaymodeCamera::default(),
+                        CameraRenderGraph::new(bevy::core_pipeline::core_2d::graph::Core2d),
                         PrefabMarker,
-                        CameraRenderGraph::new(bevy::core_pipeline::core_3d::graph::Core3d),
                     ));
                 }
-            } else if ui.button("Add 2D Playmode Camera").clicked() {
-                commands.spawn((
-                    Camera2d {},
-                    Name::new("Camera2d".to_string()),
-                    Transform::default(),
-                    Visibility::default(),
-                    PlaymodeCamera::default(),
-                    CameraRenderGraph::new(bevy::core_pipeline::core_2d::graph::Core2d),
-                    PrefabMarker,
-                ));
             }
-        }
 
-        // Moves camera below the selection
-        let pos = ui.next_widget_position();
-        let mut clipped = ui.clip_rect();
-        self.viewport_rect = Some(clipped);
+            // Moves camera below the selection
+            let pos = ui.next_widget_position();
+            let mut clipped = ui.clip_rect();
+            self.viewport_rect = Some(clipped);
 
-        let mut need_recreate_texture = false;
+            let mut need_recreate_texture = false;
+        });
     }
 
     fn tab_name(&self) -> space_editor_tabs::tab_name::TabNameHolder {
