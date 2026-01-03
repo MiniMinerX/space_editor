@@ -35,6 +35,13 @@ impl Plugin for CameraViewTabPlugin {
                 .before(set_camera_viewport)
                 .in_set(UpdateNonUIAreas),
         );
+        app.add_systems(
+            PostUpdate,
+            sync_preview_camera_transform
+                // We run BEFORE Bevy's internal transform propagation
+                // In 0.17, this is the TransformPropagations set
+                .before(bevy::transform::TransformSystems::Propagate)
+        );
         app.editor_tab_by_trait(CameraViewTab::default());
         app.add_systems(EguiPrimaryContextPass, set_camera_viewport.in_set(EditorSet::Editor));
         app.add_systems(OnEnter(EditorState::Game), clean_camera_view_tab);
@@ -286,5 +293,21 @@ fn set_camera_view_non_ui_area(
 ) {
     if let Some(rect) = cam_view.viewport_rect {
         non_ui_areas.areas.push(rect);
+    }
+}
+
+fn sync_preview_camera_transform(
+    ui_state: Res<CameraViewTab>,
+    // Use Query instead of world access for better performance
+    target_query: Query<&GlobalTransform, (With<Camera>, Without<EditorCameraViewTabCamera>)>,
+    mut preview_query: Query<&mut Transform, With<EditorCameraViewTabCamera>>,
+) {
+    if let (Some(target_ent), Some(preview_ent)) = (ui_state.camera_entity, ui_state.preview_camera) {
+        if let Ok(target_gt) = target_query.get(target_ent) {
+            if let Ok(mut preview_transform) = preview_query.get_mut(preview_ent) {
+                // Sync the preview's local transform to the target's global world position
+                *preview_transform = target_gt.compute_transform();
+            }
+        }
     }
 }
