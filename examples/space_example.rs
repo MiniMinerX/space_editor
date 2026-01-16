@@ -16,14 +16,6 @@ fn main() {
         .add_plugins(SpaceEditorPlugin)
         .add_systems(Startup, simple_editor_setup)
 
-        .add_plugins(TransformGizmoPlugin)
-
-        .add_systems(
-            Update,
-            disable_pan_orbit_on_gizmo
-                .after(update_pan_orbit)
-                .in_set(EditorSet::Editor),
-        )
 
         .register_type::<GizmoCamera>()
         .register_type::<GizmoTarget>()
@@ -34,18 +26,3 @@ fn main() {
         .run();
 }
 
-
-fn disable_pan_orbit_on_gizmo(
-    mut pan_orbit_cams: Query<&mut PanOrbitCamera, With<GizmoCamera>>,
-    gizmo_targets: Query<&GizmoTarget>,
-) {
-    for mut cam in pan_orbit_cams.iter_mut() {
-        for gizmo_target in gizmo_targets.iter() {
-            if gizmo_target.is_active() {
-                cam.enabled = false;
-                //debug!("Disabling PanOrbitCamera for GizmoTarget: {:?}", gizmo_target);
-                return;
-            }
-        }
-    }
-}

@@ -44,6 +44,12 @@ impl Plugin for CameraViewTabPlugin {
         );
         app.editor_tab_by_trait(CameraViewTab::default());
         app.add_systems(EguiPrimaryContextPass, set_camera_viewport.in_set(EditorSet::Editor));
+        app.add_systems(
+            EguiPrimaryContextPass,
+            adjust_camera_view_order
+                .after(set_camera_viewport)
+                .in_set(EditorSet::Editor),
+        );
         app.add_systems(OnEnter(EditorState::Game), clean_camera_view_tab);
     }
 }
@@ -308,6 +314,79 @@ fn sync_preview_camera_transform(
                 // Sync the preview's local transform to the target's global world position
                 *preview_transform = target_gt.compute_transform();
             }
+        }
+    }
+}
+
+fn adjust_camera_view_order(
+    ui_state: Res<CameraViewTab>,
+    editor_ui: Option<Res<space_editor_tabs::EditorUi>>,
+    mut camera_view_cameras: Query<&mut Camera, With<EditorCameraViewTabCamera>>,
+    mut game_view_cameras: Query<&mut Camera, (With<EditorGameViewWorldCameraMarker>, Without<EditorCameraViewTabCamera>)>,
+) {
+    // Create TabNameHolders for the tabs we're checking
+    let game_view_tab_name = EditorTabName::GameView.into();
+    let camera_view_tab_name = EditorTabName::CameraView.into();
+    
+    // Check if GameView and CameraView share a space (same leaf node)
+    let mut share_space = false;
+    let mut active_tab: Option<space_editor_tabs::tab_name::TabNameHolder> = None;
+    
+    if let Some(editor_ui) = editor_ui {
+        // Iterate through all leaf nodes to find if they share a space
+        for (_surface_index, node) in editor_ui.tree.iter_all_nodes() {
+            if let egui_dock::Node::Leaf(leaf) = node {
+                let has_game_view = leaf.tabs.contains(&game_view_tab_name);
+                let has_camera_view = leaf.tabs.contains(&camera_view_tab_name);
+                
+                if has_game_view && has_camera_view {
+                    share_space = true;
+                    // Get the active tab - TabIndex is a tuple struct, access via .0
+                    let active_index = leaf.active.0;
+                    if let Some(active_tab_name) = leaf.tabs.get(active_index) {
+                        active_tab = Some(active_tab_name.clone());
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    // If they share a space, set orders based on which is active
+    if share_space {
+        let camera_view_is_active = active_tab.as_ref().map_or(false, |tab| tab == &camera_view_tab_name);
+        let game_view_is_active = active_tab.as_ref().map_or(false, |tab| tab == &game_view_tab_name);
+        
+        // Set CameraViewTab camera order
+        for mut cam in camera_view_cameras.iter_mut() {
+            if camera_view_is_active {
+                // Higher order (101) so it renders on top
+                cam.order = 101;
+            } else {
+                // Lower order (99) so GameViewTab renders on top
+                cam.order = 99;
+            }
+        }
+        
+        // Set GameViewTab camera order
+        for mut cam in game_view_cameras.iter_mut() {
+            if game_view_is_active {
+                // Higher order (101) so it renders on top
+                cam.order = 101;
+            } else {
+                // Lower order (99) so CameraViewTab renders on top
+                cam.order = 99;
+            }
+        }
+    } else {
+        // If they don't share a space, use default orders
+        // CameraViewTab: 99 (lower)
+        // GameViewTab: 100 (higher)
+        for mut cam in camera_view_cameras.iter_mut() {
+            cam.order = 99;
+        }
+        for mut cam in game_view_cameras.iter_mut() {
+            cam.order = 100;
         }
     }
 }
