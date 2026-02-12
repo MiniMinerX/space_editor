@@ -2,7 +2,6 @@ use bevy::{
     prelude::*,
     render::camera::CameraRenderGraph,
 };
-use bevy_scene_hook::HookPlugin;
 use space_shared::toast::ToastMessage;
 use space_shared::{LightAreaToggle, PrefabMarker};
 use std::collections::HashSet;
@@ -50,9 +49,7 @@ impl Plugin for BasePrefabPlugin {
         app.init_resource::<PendingMeshLoads>();
         app.init_resource::<PendingMaterialLoads>();
 
-        if !app.is_plugin_added::<HookPlugin>() {
-            app.add_plugins(HookPlugin);
-        }
+
 
         if !app.is_plugin_added::<EditorRegistryPlugin>() {
             app.add_plugins(EditorRegistryPlugin);

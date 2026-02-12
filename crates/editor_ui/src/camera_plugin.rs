@@ -179,7 +179,7 @@ pub fn draw_camera_gizmo(
         
         let transform = transform.compute_transform();
         let cuboid_transform = transform.with_scale(Vec3::new(1.0 * scale2, 1.0 * scale2, 2.0 * scale2));
-        gizmos.cuboid(cuboid_transform, pink);
+        gizmos.cube(cuboid_transform, pink);
 
         
 

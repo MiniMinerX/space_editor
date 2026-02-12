@@ -121,7 +121,7 @@ impl EditorTab for InspectorTab {
         let cell = world.as_unsafe_world_cell();
         let Some(mut state) = (unsafe { cell.get_resource_mut::<InspectState>() }) else {
             error!("Failed to load inspect state");
-            world.send_event(ToastMessage::new(
+            world.write_message(ToastMessage::new(
                 "Failed to load inspect state",
                 ToastKind::Error,
             ));

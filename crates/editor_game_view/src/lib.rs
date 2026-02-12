@@ -194,7 +194,7 @@ pub fn reset_camera_viewport(
 
 }
 
-pub fn has_window_changed(mut events: EventReader<bevy::window::WindowResized>) -> bool {
+pub fn has_window_changed(mut events: MessageReader<bevy::window::WindowResized>) -> bool {
     events.read().next().is_some()
 }
 

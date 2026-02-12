@@ -13,7 +13,7 @@ fn main() {
 }
 
 fn setup(
-    mut editor_events: EventWriter<EditorEvent>,
+    mut editor_events: MessageWriter<EditorEvent>,
     mut commands: Commands,
 ) {
     

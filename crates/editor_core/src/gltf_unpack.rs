@@ -1,9 +1,13 @@
 use bevy::{
-    asset::{AssetPath, LoadState}, ecs::world::CommandQueue, gltf::{Gltf, GltfMesh, GltfNode}, platform::collections::HashMap, prelude::*
+    asset::{AssetPath, LoadState},
+    gltf::{Gltf, GltfMesh, GltfNode},
+    platform::collections::HashMap,
+    prelude::*,
 };
 
 use space_prefab::component::{AssetMaterial, AssetMesh, Mesh3dMaterialPrefab};
 use space_shared::PrefabMarker;
+use space_shared::toast::{ToastKind, ToastMessage};
 
 use super::{BackgroundTask, BackgroundTaskStorage};
 
@@ -80,119 +84,76 @@ struct UnpackContext<'a> {
     gltf_nodes: &'a Assets<GltfNode>,
 }
 
-fn unpack_gltf(world: &mut World) {
-    let loaded_scenes = {
-        let Some(mut events) = world.get_resource_mut::<Messages<GltfLoaded>>() else {
-            return;
-        };
-        let mut reader = events.get_cursor();
-        let loaded = reader.read(&events).cloned().collect::<Vec<GltfLoaded>>();
-        events.clear();
-        loaded
-    };
+fn unpack_gltf(
+    mut gltf_loaded: MessageReader<GltfLoaded>,
+    gltf_assets: Res<Assets<Gltf>>,
+    node_assets: Res<Assets<GltfNode>>,
+    mesh_assets: Res<Assets<GltfMesh>>,
+    mut toast: MessageWriter<ToastMessage>,
+    mut commands: Commands,
+) {
+    let loaded: Vec<GltfLoaded> = gltf_loaded.read().cloned().collect();
+    gltf_loaded.clear();
 
-    let mut command_queue = CommandQueue::default();
-    for gltf_loaded in loaded_scenes.iter() {
-        let handle: Handle<Gltf> = gltf_loaded.handle.clone();
-        let gltf_path = if let Some(path) = handle.path() {
-            path.clone()
-        } else {
+    for gltf_loaded in loaded {
+        let handle = gltf_loaded.handle.clone();
+        let Some(gltf_path) = handle.path().cloned() else {
             continue;
         };
         info!("Path: {:?}", &gltf_path);
 
-        let Some(gltf) = world
-            .get_resource::<Assets<Gltf>>()
-            .and_then(|gltfs| gltfs.get(&gltf_loaded.handle))
-        else {
-            world.write_message(space_shared::toast::ToastMessage::new(
+        let Some(gltf) = gltf_assets.get(&handle) else {
+            toast.write(ToastMessage::new(
                 "Gltf asset not found or empty",
-                space_shared::toast::ToastKind::Error,
-            ));
-            continue;
-        };
-
-        let mut commands = Commands::new(&mut command_queue, world);
-
-        let Some(gltf_nodes) = world.get_resource::<Assets<GltfNode>>() else {
-            world.write_message(space_shared::toast::ToastMessage::new(
-                "Gltf Node asset not found",
-                space_shared::toast::ToastKind::Error,
-            ));
-            continue;
-        };
-        let Some(gltf_meshs) = world.get_resource::<Assets<GltfMesh>>() else {
-            world.write_message(space_shared::toast::ToastMessage::new(
-                "Gltf Mesh asset not found",
-                space_shared::toast::ToastKind::Error,
-            ));
-            continue;
-        };
-        let Some(scenes) = world.get_resource::<Assets<Scene>>() else {
-            world.write_message(space_shared::toast::ToastMessage::new(
-                "Scene asset not found",
-                space_shared::toast::ToastKind::Error,
+                ToastKind::Error,
             ));
             continue;
         };
 
         let mut mesh_map = HashMap::new();
-        for idx in 0..gltf.meshes.len() {
-            mesh_map.insert(gltf.meshes[idx].clone(), idx);
+        for (idx, h) in gltf.meshes.iter().enumerate() {
+            mesh_map.insert(h.clone(), idx);
         }
 
         let mut material_map = HashMap::new();
-        for idx in 0..gltf.materials.len() {
-            info!("Material: {:?}", &gltf.materials[idx]);
-            material_map.insert(gltf.materials[idx].clone(), idx);
+        for (idx, h) in gltf.materials.iter().enumerate() {
+            info!("Material: {:?}", h);
+            material_map.insert(h.clone(), idx);
         }
 
-        for idx in 0..gltf.scenes.len() {
-            let Some(scene) = scenes.get(&gltf.scenes[idx]) else {
-                continue;
-            };
-
-            //find roots nodes
-            let mut roots = vec![];
-            for e in scene.world.iter_entities() {
-                if !e.contains::<ChildOf>() && e.contains::<Children>() {
-                    let Some(children) = e.get::<Children>() else {
-                        continue;
-                    };
-                    for child in children.iter() {
-                        if let Some(name) = scene.world.entity(child.entity()).get::<Name>() {
-                            info!("Name: {:?}", &name);
-                            if let Some(node_handle) = gltf.named_nodes.get(name.as_str()) {
-                                roots.push(node_handle.clone())
-                            }
-                        }
-                    }
-                }
-            }
-
-            info!("Roots: {:?}", &roots);
-
-            let ctx = UnpackContext {
-                material_map: &material_map,
-                mesh_map: &mesh_map,
-                gltf_meshs,
-                gltf_path: &gltf_path,
-                gltf_nodes: &gltf_nodes,
-            };
-
-            for root in roots.iter() {
-                let entity = spawn_node(&mut commands, root, gltf, &ctx);
-                
-                if let Some(parent) = gltf_loaded.parent {
-                    commands.entity(parent).add_child(entity);
+        // Root detection from Gltf node graph (no Scene world usage)
+        let mut has_parent: HashMap<Handle<GltfNode>, ()> = HashMap::default();
+        for node_handle in &gltf.nodes {
+            if let Some(node) = node_assets.get(node_handle) {
+                for child in &node.children {
+                    has_parent.insert(child.clone(), ());
                 }
             }
         }
+        let roots: Vec<Handle<GltfNode>> = gltf
+            .nodes
+            .iter()
+            .filter(|h| !has_parent.contains_key(*h))
+            .cloned()
+            .collect();
 
-        break;
+        info!("Roots: {:?}", &roots);
+
+        let ctx = UnpackContext {
+            material_map: &material_map,
+            mesh_map: &mesh_map,
+            gltf_meshs: &*mesh_assets,
+            gltf_path: &gltf_path,
+            gltf_nodes: &*node_assets,
+        };
+
+        for root in &roots {
+            let entity = spawn_node(&mut commands, root, gltf, &ctx);
+            if let Some(parent) = gltf_loaded.parent {
+                commands.entity(parent).add_child(entity);
+            }
+        }
     }
-
-    command_queue.apply(world);
 }
 
 fn spawn_node(

@@ -1,10 +1,8 @@
 use bevy::prelude::*;
-use bevy_scene_hook::SceneHook;
+use bevy::scene::{SceneInstanceReady, SceneSpawner};
 #[cfg(feature = "editor")]
 use space_shared::toast::ToastMessage;
 use space_shared::PrefabMarker;
-
-// use crate::prelude::ChildPath;
 
 use super::component::*;
 
@@ -39,22 +37,13 @@ pub fn spawn_scene(
 
         let is_auto_child = auto_child.is_some();
 
-        commands.entity(e).insert(SceneAutoRoot);
-
         commands
             .entity(e)
+            .insert(SceneAutoRoot)
             .insert(SceneRoot(
                 asset_server.load::<Scene>(format!("{}#{}", &prefab.path, &prefab.scene)),
             ))
-            .insert(SceneHook::new(move |e, cmd| {
-                if e.contains::<SceneAutoRoot>() {
-                    cmd.insert(WantChildPath);
-                } else if is_auto_child {
-                    cmd.insert(SceneAutoChild);
-                } else {
-                    cmd.insert((SceneAutoChild, PrefabMarker));
-                }
-            }));
+            .observe(gltf_scene_instance_ready);
 
         if visibility.is_none() {
             commands.entity(e).insert(Visibility::default());
@@ -64,6 +53,35 @@ pub fn spawn_scene(
                 Transform::default(),
                 Visibility::default(),
             ));
+        }
+    }
+}
+
+/// Observer for GltfPrefab: when scene instance is ready, apply components to instance entities.
+fn gltf_scene_instance_ready(
+    scene_ready: On<SceneInstanceReady>,
+    scene_spawner: Res<SceneSpawner>,
+    parents: Query<&ChildOf>,
+    has_auto_child: Query<(), With<SceneAutoChild>>,
+    mut commands: Commands,
+) {
+    if scene_ready.entity == Entity::PLACEHOLDER || !scene_spawner.instance_is_ready(scene_ready.instance_id) {
+        return;
+    }
+
+    let is_auto_child = has_auto_child.get(scene_ready.entity).is_ok();
+
+    for entity in scene_spawner.iter_instance_entities(scene_ready.instance_id) {
+        let is_scene_root = parents
+            .get(entity)
+            .is_ok_and(|c| c.parent() == scene_ready.entity);
+
+        if is_scene_root {
+            commands.entity(entity).insert(WantChildPath);
+        } else if is_auto_child {
+            commands.entity(entity).insert(SceneAutoChild);
+        } else {
+            commands.entity(entity).insert((SceneAutoChild, PrefabMarker));
         }
     }
 }

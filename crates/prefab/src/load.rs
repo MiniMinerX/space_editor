@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_scene_hook::SceneHook;
+use bevy::scene::{SceneInstanceReady, SceneSpawner};
 use space_shared::PrefabMarker;
 
 use crate::prelude::EditorRegistryExt;
@@ -57,8 +57,7 @@ impl Plugin for LoadPlugin {
                 ApplyDeferred,
                 auto_children,
             )
-                .chain()
-                .after(bevy_scene_hook::Systems::SceneHookRunner),
+                .chain(),
         );
     }
 }
@@ -109,16 +108,28 @@ fn load_prefab(
         let scene: Handle<DynamicScene> = assets.load(&l.path);
 
         let id = commands
-            .spawn(DynamicSceneRoot(scene))
-            .insert(SceneHook::new(move |_e, cmd| {
-                cmd.insert(PrefabAutoChild);
-            }))
-            .insert(PrefabAutoChild)
+            .spawn((DynamicSceneRoot(scene), PrefabAutoChild))
+            .observe(prefab_scene_instance_ready)
             .id();
 
         commands.entity(e).add_children(&[id]);
         
         
+    }
+}
+
+/// Observer for PrefabLoader: when scene instance is ready, add PrefabAutoChild to all instance entities.
+fn prefab_scene_instance_ready(
+    scene_ready: On<SceneInstanceReady>,
+    scene_spawner: Res<SceneSpawner>,
+    mut commands: Commands,
+) {
+    if scene_ready.entity == Entity::PLACEHOLDER || !scene_spawner.instance_is_ready(scene_ready.instance_id) {
+        return;
+    }
+
+    for entity in scene_spawner.iter_instance_entities(scene_ready.instance_id) {
+        commands.entity(entity).insert(PrefabAutoChild);
     }
 }
 

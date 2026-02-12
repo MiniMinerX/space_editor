@@ -145,6 +145,18 @@ fn in_game_menu(
         });
 }
 
+fn normalize_asset_path(path: &str) -> Option<String> {
+    let path_slashes = path.replace('\\', "/");
+    let path_lower = path_slashes.to_lowercase();
+    let idx = path_lower.find("assets")?;
+    let after = path_slashes.get(idx + 6..)?;
+    let relative = after.trim_start_matches('/');
+    if relative.is_empty() {
+        return None;
+    }
+    Some(relative.to_string())
+}
+
 #[derive(Resource, Default)]
 pub struct MenuToolbarState {
     pub file_dialog: Option<egui_file::FileDialog>,
@@ -328,11 +340,12 @@ pub fn top_menu(
                 let open_button = egui::Button::new(to_richtext("📂", &sizing.icon))
                     .stroke(stroke_default_color());
                 if ui.add(open_button).clicked() {
-                    let mut dialog = egui_file::FileDialog::open_file(Some("assets/".into()))
+                    let mut dialog = egui_file::FileDialog::open_file()
                         .show_files_filter(Box::new(|path| {
                             path.to_str().unwrap().ends_with(".scn.ron")
                         }))
                         .title("File Explorer (Scene/Bundle) (*.scn.ron)");
+                    dialog.set_path("assets/");
                     dialog.open();
                     menu_state.file_dialog = Some(dialog);
                 }
@@ -377,9 +390,10 @@ pub fn top_menu(
                     .clicked()
                 {
                     let mut save_dialog =
-                        egui_file::FileDialog::save_file(Some("./assets/scenes".into()))
+                        egui_file::FileDialog::save_file()
                             .default_filename("Scene0.scn.ron")
                             .title("Save Scene");
+                    save_dialog.set_path("assets/scenes");
                     save_dialog.open();
                     menu_state.save_dialog = Some(save_dialog);
                 }
@@ -407,7 +421,7 @@ pub fn top_menu(
                             need_move_to_default_dir = true;
                         }
                         if need_move_to_default_dir {
-                            save_dialog.set_path("assets/");
+                            save_dialog.set_path("assets/scenes");
                         }
                     }
                 }
@@ -421,11 +435,12 @@ pub fn top_menu(
                     .on_hover_text("Load scene file")
                     .clicked()
                 {
-                    let mut dialog = egui_file::FileDialog::open_file(Some("assets/scenes".into()))
+                    let mut dialog = egui_file::FileDialog::open_file()
                         .show_files_filter(Box::new(|path| {
                             path.to_str().unwrap().ends_with(".scn.ron")
                         }))
                         .title("Load Scene (*.scn.ron)");
+                    dialog.set_path("assets/scenes");
                     dialog.open();
                     menu_state.load_dialog = Some(dialog);
                 }
@@ -470,12 +485,13 @@ pub fn top_menu(
                     .clicked()
                 {
                     let mut gltf_dialog =
-                        egui_file::FileDialog::open_file(Some("assets/models".into()))
+                        egui_file::FileDialog::open_file()
                             .show_files_filter(Box::new(|path| {
                                 path.to_str().unwrap().ends_with(".gltf")
                                     || path.to_str().unwrap().ends_with(".glb")
                             }))
                             .title("Opens GLTF as Prefab");
+                    gltf_dialog.set_path("assets/models");
                     gltf_dialog.open();
                     menu_state.gltf_dialog = Some(gltf_dialog);
                 }
@@ -503,7 +519,7 @@ pub fn top_menu(
                             need_move_to_default_dir = true;
                         }
                         if need_move_to_default_dir {
-                            gltf_dialog.set_path("assets/");
+                            gltf_dialog.set_path("assets/models");
                         }
                     }
                 }
@@ -517,13 +533,14 @@ pub fn top_menu(
                     .on_hover_text("Open subscene")
                     .clicked()
                 {
-                    let mut filedialog = egui_file::FileDialog::open_file(Some("assets".into()))
+                    let mut filedialog = egui_file::FileDialog::open_file()
                         .show_files_filter(Box::new(|path| {
                             path.to_str().unwrap().ends_with(".scn.ron")
                                 || path.to_str().unwrap().ends_with(".gltf")
                                 || path.to_str().unwrap().ends_with(".glb")
                         }))
                         .title("Open Subscene (.scn.ron, .gltf, .glb)");
+                    filedialog.set_path("assets/");
                     filedialog.open();
 
                     menu_state.subscene_dialog = Some(filedialog);
@@ -532,29 +549,39 @@ pub fn top_menu(
                 if let Some(subscene_dialog) = &mut menu_state.subscene_dialog {
                     if subscene_dialog.show(ctx).selected() {
                         if let Some(file) = subscene_dialog.path() {
-                            let mut path = file.to_str().unwrap().to_string();
+                            let path = file.to_str().unwrap().to_string();
                             info!("path: {}", path);
-                            if path.starts_with("assets") {
-                                path = path.replace("assets", "");
-                                path = path.trim_start_matches('\\').to_string();
-                                path = path.trim_start_matches('/').to_string();
-
-                                if path.ends_with(".scn.ron") {
-                                    commands.spawn((PrefabBundle::new(&path), PrefabMarker));
-                                } else if path.ends_with(".gltf") || path.ends_with(".glb") {
+                            if let Some(relative) = normalize_asset_path(&path) {
+                                if relative.ends_with(".scn.ron") {
+                                    commands.spawn((PrefabBundle::new(&relative), PrefabMarker));
+                                } else if relative.ends_with(".gltf") || relative.ends_with(".glb") {
                                     commands.spawn((
                                         Visibility::default(),
                                         Transform::default(),
                                         GltfPrefab {
-                                            path,
+                                            path: relative,
                                             scene: "Scene0".into(),
                                         },
                                         PrefabMarker,
                                     ));
                                 } else {
-                                    error!("Unknown file type: {}", path);
+                                    error!("Unknown file type: {}", relative);
                                 }
+                            } else {
+                                error!("Selected file is not under assets directory");
                             }
+                        }
+                    } else {
+                        let mut need_move_to_default_dir = false;
+                        if let Some(path) = subscene_dialog.directory().to_str() {
+                            if !path.contains("assets") {
+                                need_move_to_default_dir = true;
+                            }
+                        } else {
+                            need_move_to_default_dir = true;
+                        }
+                        if need_move_to_default_dir {
+                            subscene_dialog.set_path("assets/");
                         }
                     }
                 }

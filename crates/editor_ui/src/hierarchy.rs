@@ -344,7 +344,7 @@ fn clone_enitites(
             if let Ok(entity) = query.get(src_id) {
                 if entity.contains::<PrefabMarker>() {
                     let mut cmds = commands.entity(dst_id).insert(ClonedEntity);
-                    commands.entity(src_id).clone_with_opt_in(dst_id, |_| {});
+                    commands.entity(src_id).clone_with_opt_out(dst_id, |_| {});
 
                     // editor_registry.clone_entity_flat(&mut cmds, &entity);
 

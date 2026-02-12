@@ -73,7 +73,7 @@ fn remove_gizmo_components(
 }
 
 pub fn selected_trigger(
-    trigger: Trigger<OnAdd, Selected>,
+    trigger: On<Add, Selected>,
     mut commands: Commands,
     gizmo_targets: Query<(Entity, &GizmoTarget)>,
 ) {
@@ -82,14 +82,14 @@ pub fn selected_trigger(
         commands.entity(gizmo_target).remove::<GizmoTarget>();
     }
 
-    commands.entity(trigger.target()).insert((
+    commands.entity(trigger.entity).insert((
         GizmoTarget::default(),
     ));
 }
 
  
 pub fn selected_trigger_remove(
-    trigger: Trigger<OnRemove, Selected>,
+    trigger: On<Remove, Selected>,
     mut commands: Commands,
     selected_targets: Query<&Selected>,
 ) {
@@ -97,7 +97,7 @@ pub fn selected_trigger_remove(
     // In case we picked the same target again
     // But if no selected targets are left, we remove the gizmo target
     if selected_targets.is_empty() {
-        commands.entity(trigger.target()).remove::<GizmoTarget>();
+        commands.entity(trigger.entity).remove::<GizmoTarget>();
     }
 }
 

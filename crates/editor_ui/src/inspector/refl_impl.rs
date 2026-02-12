@@ -50,23 +50,22 @@ pub fn setup_ref_registry(reg: ResMut<AppTypeRegistry>) {
         ))
 }
 
-/// Custom UI for [`EntityLink`] struct
+/// Custom UI for [`EntityLink`] struct. Entity list is passed via `options` as `&Vec<Entity>` (no world access).
 pub fn entity_ref_ui(
     value: &mut dyn Any,
     ui: &mut egui::Ui,
-    _options: &dyn Any,
+    options: &dyn Any,
     id: egui::Id,
-    env: InspectorUi<'_, '_>,
+    _env: InspectorUi<'_, '_>,
 ) -> bool {
     if let Some(value) = value.downcast_mut::<EntityLink>() {
-        if let Some(world) = &env.context.world {
+        if let Some(entities) = options.downcast_ref::<Vec<bevy::prelude::Entity>>() {
             egui::ComboBox::new(id, "")
                 .selected_text(format!("{:?}", value.entity))
                 .show_ui(ui, |ui| {
-                    let world_ref = unsafe { world.world().world() };
-                    for e in world_ref.iter_entities() {
+                    for &entity in entities {
                         if ui
-                            .selectable_value(&mut value.entity, e.id(), format!("{:?}", e.id()))
+                            .selectable_value(&mut value.entity, entity, format!("{:?}", entity))
                             .clicked()
                         {
                             return true;
@@ -75,7 +74,7 @@ pub fn entity_ref_ui(
                     false
                 });
         } else {
-            ui.label(format!("{:?}", &value.entity));
+            ui.label(format!("{:?}", value.entity));
         }
     }
     false
